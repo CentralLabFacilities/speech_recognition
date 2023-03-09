@@ -19,7 +19,7 @@ class WhisperNode():
         self.whisper_model_ = whisper.load_model(model_or_path)
         self.whisper_options_ = whisper.DecodingOptions(language="english")
 
-        self.pub = rospy.Publisher('text', String, queue_size=1)
+        self.pub = rospy.Publisher('~text', String, queue_size=1)
 
         self.max_length=8.0
 
@@ -121,7 +121,7 @@ class WhisperNode():
         result = whisper.decode(self.whisper_model_, mel, self.whisper_options_)
         if result.no_speech_prob < 0.7:
             rospy.loginfo(f"{result.text}")
-            self.pub(result.text)
+            self.pub.publish(result.text)
         else:
             rospy.logwarn(f"no speech {result.no_speech_prob}, TEXT: {result.text}")
 
