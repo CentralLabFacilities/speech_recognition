@@ -2,7 +2,7 @@
 
 ### Prerequisites 
 
-Make sure `openai-whisper` is available
+package `openai-whisper`
 
 To use this in a ros space make sure the packages are available e.g. by installing them into default ROS python path
 
