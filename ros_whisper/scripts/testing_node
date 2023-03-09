@@ -1,0 +1,144 @@
+#!/usr/bin/env python
+import sys
+from collections import deque
+
+
+import rospy
+
+from threading import Lock
+
+import numpy as np
+import torch
+import whisper
+
+from audio_common_msgs.msg import AudioData
+from std_msgs.msg import String
+
+class WhisperNode():
+    def __init__(self, model_or_path, silence_db):
+        self.whisper_model_ = whisper.load_model(model_or_path)
+        self.whisper_options_ = whisper.DecodingOptions(language="english")
+
+        self.pub = rospy.Publisher('text', String, queue_size=1)
+
+        self.max_length=8.0
+
+        #TODO Read data from audio info
+        self.sample_rate=16000
+        self.chunk_size = self.sample_rate / 100
+        self.depth=16
+
+        self.silence = silence_db
+        self.max_silence = 50
+
+        if self.depth == 16:
+            self.depth_type = np.int16
+        else:
+            raise "unknown audio format"
+
+        self.nomalization = float(np.iinfo(self.depth_type).max / 2)
+        
+        bitrate=128
+        n_channel=1
+
+        self.period_ = 1.0
+        self.max_len = 8.0
+        self.lock = Lock()
+        self.audio_buffer_ = deque(
+            maxlen=int(self.sample_rate * self.max_len)
+        )  # buffer length to record 8 seconds
+
+        rospy.loginfo("initializing whisper...")
+        self.device_ = "cpu"
+        if torch.cuda.is_available():
+            rospy.loginfo("CUDA is available. Using GPU.")
+            self.device_ = "cuda"
+        self.whisper_model_ = self.whisper_model_.to(self.device_)
+        rospy.loginfo("Whipser initialized")
+
+        self.in_rec = False
+        self.transcribe = False
+        self.silent_chunks = 0
+        self.chunk_num = 0
+
+    def add_audio_data(self, data):
+        self.chunk_num = self.chunk_num + 1
+        rt_value = np.frombuffer(data.data, dtype=self.depth_type)
+        abs = np.absolute(rt_value)
+        mean = np.mean(abs)
+        peak = np.max(abs)
+        v = 20 * np.log10(mean)
+
+        this_chunk_silent = v < self.silence
+        if not self.in_rec and not this_chunk_silent:
+            rospy.logdebug(f'c{self.chunk_num}: starting recording with db={v}')
+            self.in_rec = True
+            self.silent_chunks = 0
+            # append chunk before non silence
+            for d in self.last_chunk:
+                self.audio_buffer_.append(d)
+
+        self.last_chunk = rt_value
+        
+        if this_chunk_silent:
+            if self.silent_chunks == 0:
+                rospy.logdebug(f'c{self.chunk_num}: first silent chunk with db={v}')
+            self.silent_chunks = self.silent_chunks + 1
+        else:
+            self.silent_chunks = 0
+
+        if self.in_rec:
+            for d in rt_value:
+                self.audio_buffer_.append(d)
+            buffer_len = len(self.audio_buffer_)
+            if buffer_len > self.audio_buffer_.maxlen:
+                rospy.logwarn(f'buffer full')
+                self.transcribe = True
+            if self.silent_chunks >= self.max_silence:
+                self.in_rec = False
+                self.recognize_buffer = self.audio_buffer_.copy()
+                rospy.logdebug(f'c{self.chunk_num}: finished recording')
+                self.transcribe = True
+                self.audio_buffer_.clear()
+
+
+    def timer(self, event=None):
+        if not self.transcribe:
+            return
+        else:
+            self.transcribe = False
+
+        audio = np.asarray(self.recognize_buffer, dtype=self.depth_type)
+        audio = np.divide(audio, self.nomalization ) # -1.0 to 1.0
+        #abs = np.absolute(audio)
+        #mean = np.mean(abs)
+        #peak = np.max(abs)
+        #db = 20 * np.log10(mean)
+        #rospy.logdebug(f"db: {db} mean{mean}")
+        audio = torch.from_numpy(audio).float()
+        audio = whisper.pad_or_trim(audio)
+        mel = whisper.log_mel_spectrogram(audio).to(self.device_)
+        result = whisper.decode(self.whisper_model_, mel, self.whisper_options_)
+        if result.no_speech_prob < 0.7:
+            rospy.loginfo(f"{result.text}")
+            self.pub(result.text)
+        else:
+            rospy.logwarn(f"no speech {result.no_speech_prob}, TEXT: {result.text}")
+
+
+            
+
+
+if __name__ == '__main__':
+
+    # Start ROS node
+    rospy.init_node('ros_whisper_test')
+    model_or_path = rospy.get_param('~model_or_path', "base.en")
+    silence_db = rospy.get_param('~silence_db', 35)
+    rospy.loginfo(f"using model: {model_or_path}")
+    node = WhisperNode(model_or_path, silence_db)
+    rospy.Timer(rospy.Duration(1.0 / 10), node.timer)
+
+    rospy.Subscriber("/audio", AudioData, node.add_audio_data)
+
+    rospy.spin()
