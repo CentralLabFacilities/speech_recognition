@@ -9,7 +9,7 @@ To use this in a ros space make sure the packages are available e.g. by installi
 ```bash
 export PYTHONUSERBASE=/path/to/workspace/devel
 cd $PYTHONUSERBASE/lib
-# link all possible python paths together e.g.
+# link all possible python paths together so we can simply source setup.bash to make packages availiable e.g.
 mkdir -p python3/dist-packages
 ln -s python3 python3.8
 cd python3
