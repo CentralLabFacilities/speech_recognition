@@ -1,0 +1,10 @@
+<launch>
+    <arg name="model" default="$(find ros_rasa)/models/MODEL_NAME.tar.gz"/>
+    <arg name="input_topic" default="/ros_whisper/text"/>
+
+    <node pkg="ros_rasa" type="rasa_nlu_node" name="rasa" output="screen">
+        <remap from="~input" to="$(arg input_topic)" />
+        <param name="model" value="$(arg model)"/>
+    </node>
+
+</launch> 

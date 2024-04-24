@@ -11,15 +11,21 @@ import numpy as np
 import torch
 import whisper
 
+import time
+
 from audio_common_msgs.msg import AudioData
 from std_msgs.msg import String
 
 class WhisperNode():
-    def __init__(self, model_or_path, silence_db):
+    def __init__(self, model_or_path, silence_db, language, n_mels):
         self.whisper_model_ = whisper.load_model(model_or_path)
-        self.whisper_options_ = whisper.DecodingOptions(language="english")
+        if language is not "multi":
+            self.whisper_options_ = whisper.DecodingOptions(language=language)
+        else:
+            self.whisper_options_ = whisper.DecodingOptions()
 
         self.pub = rospy.Publisher('~text', String, queue_size=1)
+        self.n_mels = n_mels
 
         self.max_length=8.0
 
@@ -108,6 +114,10 @@ class WhisperNode():
         else:
             self.transcribe = False
 
+        rospy.loginfo(f"starting transcription..")
+
+        start = time.time()
+
         audio = np.asarray(self.recognize_buffer, dtype=self.depth_type)
         audio = np.divide(audio, self.nomalization ) # -1.0 to 1.0
         #abs = np.absolute(audio)
@@ -117,10 +127,12 @@ class WhisperNode():
         #rospy.logdebug(f"db: {db} mean{mean}")
         audio = torch.from_numpy(audio).float()
         audio = whisper.pad_or_trim(audio)
-        mel = whisper.log_mel_spectrogram(audio).to(self.device_)
+        mel = whisper.log_mel_spectrogram(audio, self.n_mels, device=self.device_).to(self.device_)
         result = whisper.decode(self.whisper_model_, mel, self.whisper_options_)
+
+        end = time.time()
         if result.no_speech_prob < 0.7:
-            rospy.loginfo(f"{result.text}")
+            rospy.loginfo(f"speech result: '{result.text}' , took: {end - start}")
             self.pub.publish(result.text)
         else:
             rospy.logwarn(f"no speech {result.no_speech_prob}, TEXT: {result.text}")
@@ -135,8 +147,10 @@ if __name__ == '__main__':
     rospy.init_node('ros_whisper_test')
     model_or_path = rospy.get_param('~model_or_path', "base.en")
     silence_db = rospy.get_param('~silence_db', 35)
+    language = rospy.get_param('~language', "en")
+    n_mels = rospy.get_param('~n_mels', 80)
     rospy.loginfo(f"using model: {model_or_path}")
-    node = WhisperNode(model_or_path, silence_db)
+    node = WhisperNode(model_or_path, silence_db, language, n_mels)
     rospy.Timer(rospy.Duration(1.0 / 10), node.timer)
 
     rospy.Subscriber("/audio", AudioData, node.add_audio_data)

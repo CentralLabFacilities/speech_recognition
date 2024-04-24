@@ -1,0 +1,98 @@
+#!/usr/bin/env python
+import sys
+from collections import deque
+
+import rospy
+
+from threading import Lock
+
+import numpy as np
+import torch
+import whisper
+
+import time
+
+from audio_common_msgs.msg import AudioData
+from std_msgs.msg import String
+
+
+class WhisperNode:
+    def __init__(self, model_or_path, silence_db, language, n_mels):
+        self.whisper_model_ = whisper.load_model(model_or_path)
+
+        if language != "multi":
+            self.whisper_options_ = whisper.DecodingOptions(language=language)
+        else:
+            self.whisper_options_ = whisper.DecodingOptions()
+
+        self.pub = rospy.Publisher("~text", String, queue_size=1)
+        self.n_mels = n_mels
+
+        self.max_length = 8.0
+
+        # TODO Read data from audio info
+        self.sample_rate = 16000
+        self.chunk_size = self.sample_rate / 100
+        self.depth = 16
+
+        self.silence = silence_db
+        self.max_silence = 50
+
+        if self.depth == 16:
+            self.depth_type = np.int16
+        else:
+            raise "unknown audio format"
+
+        self.nomalization = float(np.iinfo(self.depth_type).max / 2)
+
+        bitrate = 128
+        n_channel = 1
+
+        self.period_ = 1.0
+        self.max_len = 8.0
+        self.lock = Lock()
+        self.audio_buffer_ = deque(
+            maxlen=int(self.sample_rate * self.max_len)
+        )  # buffer length to record 8 seconds
+
+        rospy.loginfo("initializing whisper...")
+        self.device_ = "cpu"
+        if torch.cuda.is_available():
+            rospy.loginfo("CUDA is available. Using GPU.")
+            self.device_ = "cuda"
+        self.whisper_model_ = self.whisper_model_.to(self.device_)
+        rospy.loginfo("Whipser initialized")
+
+    def transcribe_audio(self, data: AudioData):
+        rospy.loginfo(f"starting transcription..")
+        start = time.time()
+        audio_data = np.frombuffer(data.data, dtype=self.depth_type)
+        audio = np.divide(audio_data, self.nomalization)
+        audio = torch.from_numpy(audio).float()
+        audio = whisper.pad_or_trim(audio)
+        mel = whisper.log_mel_spectrogram(audio, self.n_mels, device=self.device_).to(
+            self.device_
+        )
+        result = whisper.decode(self.whisper_model_, mel, self.whisper_options_)
+        end = time.time()
+        if result.no_speech_prob < 0.7:
+            rospy.loginfo(f"speech result: '{result.text}' , took: {end - start}")
+            self.pub.publish(result.text)
+        else:
+            rospy.logwarn(f"no speech {result.no_speech_prob}, TEXT: {result.text}")
+
+
+if __name__ == "__main__":
+
+    # Start ROS node
+    rospy.init_node("ros_whisper_transcribe")
+    model_or_path = rospy.get_param("~model_or_path", "base.en")
+    silence_db = rospy.get_param("~silence_db", 35)
+    language = rospy.get_param("~language", "en")
+    n_mels = rospy.get_param("~n_mels", 80)
+    rospy.loginfo(f"using model: {model_or_path}")
+    node = WhisperNode(model_or_path, silence_db, language, n_mels)
+
+    rospy.Subscriber("~input", AudioData, node.transcribe_audio)
+
+    rospy.spin()
