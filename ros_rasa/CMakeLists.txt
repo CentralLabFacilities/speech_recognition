@@ -12,6 +12,7 @@ catkin_package()
 install(PROGRAMS
   scripts/rasa_nlu_node
   scripts/train_model.py
+  scripts/test_nlu_model.py
   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
 
