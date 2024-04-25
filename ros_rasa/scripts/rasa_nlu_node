@@ -35,6 +35,7 @@ class RASANode:
             e = Entity()
             e.key = entity["entity"]
             e.value = entity["value"]
+            e.role = entity.get('role', "")
             nlu.entities.append(e)
 
         self.result_pub.publish(nlu)

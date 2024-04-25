@@ -71,6 +71,8 @@ class SileroVadNode:
             if not self.recording and "start" in speech_dict:
                 self.recording = True
                 self.data = self.prebuf
+                self.prebuf = []
+                return
 
             elif self.recording and "end" in speech_dict:
                 self.recording = False

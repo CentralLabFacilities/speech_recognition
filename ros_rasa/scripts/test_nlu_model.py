@@ -45,9 +45,9 @@ if __name__ == "__main__":
     _, model_metadata, graph_runner = MessageProcessor._load_model(mod)
 
     print("""
-#######################
-Model Trined and Loaded
-#######################
+########################
+Model Trained and Loaded
+########################
 
           """)
 
@@ -66,5 +66,8 @@ Model Trined and Loaded
                 f"\nInput: '{kv['text']}' intent: {kv['intent']['name']} conf: {kv['intent']['confidence']}"
             )
             for entity in kv["entities"]:
-                print(f"Entity: '{entity['value']}' type '{entity['entity']}'")
+                if "role" in entity:
+                    print(f"  Entity:'{entity['value']}', type:'{entity['entity']}':{entity['confidence_entity']:1.2f}, role:'{entity['role']}':{entity['confidence_role']:1.2f}")
+                else:
+                    print(f"  Entity:'{entity['value']}', type:'{entity['entity']}':{entity['confidence_entity']:1.2f}")
             print()
