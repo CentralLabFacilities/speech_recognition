@@ -12,7 +12,7 @@ import whisper
 
 import time
 
-from audio_common_msgs.msg import AudioData
+from audio_common_msgs.msg import AudioData, AudioInfo
 from std_msgs.msg import String
 
 
@@ -30,30 +30,28 @@ class WhisperNode:
 
         self.max_length = 8.0
 
-        # TODO Read data from audio info
-        self.sample_rate = 16000
-        self.chunk_size = self.sample_rate / 100
-        self.depth = 16
+        audio_info : AudioInfo = rospy.wait_for_message('audio_info', AudioInfo, timeout=5)
+        
+        if not audio_info.sample_rate == 16000:
+            msg = f"Sample rate needs to be 16000"
+            rospy.logerr(logger_name="SileroVAD", msg=msg)
+            raise msg
+        
+        if not audio_info.channels == 1:
+            msg = f"Cant use non mono audio"
+            rospy.logerr(logger_name="SileroVAD", msg=msg)
+            raise msg
 
-        self.silence = silence_db
-        self.max_silence = 50
-
-        if self.depth == 16:
+        if audio_info.sample_format.lower() == "s16le":
             self.depth_type = np.int16
+            self.nomalization = float(np.iinfo(self.depth_type).max)
+        elif audio_info.sample_format.lower() == "f32le":
+            self.depth_type = np.float32
+            self.nomalization = None
         else:
-            raise "unknown audio format"
-
-        self.nomalization = float(np.iinfo(self.depth_type).max / 2)
-
-        bitrate = 128
-        n_channel = 1
-
-        self.period_ = 1.0
-        self.max_len = 8.0
-        self.lock = Lock()
-        self.audio_buffer_ = deque(
-            maxlen=int(self.sample_rate * self.max_len)
-        )  # buffer length to record 8 seconds
+            msg = f"unhandled audio format"
+            rospy.logerr(logger_name="SileroVAD", msg=msg)
+            raise msg
 
         rospy.loginfo("initializing whisper...")
         self.device_ = "cpu"
@@ -67,8 +65,11 @@ class WhisperNode:
         rospy.loginfo(f"starting transcription..")
         start = time.time()
         audio_data = np.frombuffer(data.data, dtype=self.depth_type)
-        audio = np.divide(audio_data, self.nomalization)
-        audio = torch.from_numpy(audio).float()
+        if self.nomalization is None:
+            audio = torch.from_numpy(audio_data)
+        else:
+            audio = np.divide(audio_data, self.nomalization)
+            audio = torch.from_numpy(audio).float()
         audio = whisper.pad_or_trim(audio)
         mel = whisper.log_mel_spectrogram(audio, self.n_mels, device=self.device_).to(
             self.device_

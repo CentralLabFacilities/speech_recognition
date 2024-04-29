@@ -17,7 +17,7 @@
   <arg name="channels" default="1"/>
   <arg name="depth" default="16"/>
   <arg name="sample_rate" default="16000"/>
-  <arg name="sample_format" default="S16LE"/>
+  <arg name="sample_format" default="F32LE"/>
 
   <node name="audio_capture" pkg="audio_capture" type="audio_capture" output="screen">
     <param name="dst" value="$(arg dst)"/>

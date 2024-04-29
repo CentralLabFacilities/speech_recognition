@@ -3,11 +3,13 @@
 import torch
 import numpy as np
 from typing import List
+import sys
 
 import rospy
 from std_srvs.srv import SetBool, SetBoolRequest, SetBoolResponse
 
-from audio_common_msgs.msg import AudioData
+from audio_common_msgs.msg import AudioData, AudioInfo
+from std_msgs.msg import Float32
 
 
 class SileroVadNode:
@@ -19,20 +21,37 @@ class SileroVadNode:
 
         self.enabled = self.chunk = True
 
-        self.init_silero()
+       
 
-        self.depth = 16
+        audio_info : AudioInfo = rospy.wait_for_message('audio_info', AudioInfo, timeout=5)
+        
+        if not audio_info.sample_rate == 16000:
+            msg = f"Sample rate needs to be 16000"
+            rospy.logerr(logger_name="SileroVAD", msg=msg)
+            raise msg
+        
+        if not audio_info.channels == 1:
+            msg = f"Cant use non mono audio"
+            rospy.logerr(logger_name="SileroVAD", msg=msg)
+            raise msg
 
-        if self.depth == 16:
+        if audio_info.sample_format.lower() == "s16le":
             self.depth_type = np.int16
+            self.nomalization = float(np.iinfo(self.depth_type).max)
+        elif audio_info.sample_format.lower() == "f32le":
+            self.depth_type = np.float32
+            self.nomalization = None
         else:
-            raise "unknown audio format"
-
-        self.nomalization = float(np.iinfo(self.depth_type).max / 2)
+            msg = f"unhandled audio format"
+            rospy.logerr(logger_name="SileroVAD", msg=msg)
+            raise msg
+              
+        self.init_silero()
 
         self._enable_srv = rospy.Service("~enable_vad", SetBool, self.enable_cb)
 
         self._pub = rospy.Publisher("~vad", AudioData, queue_size=10)
+        self._pub_amp = rospy.Publisher("~amp", Float32, queue_size=10)
         self._sub = rospy.Subscriber(
             "audio",
             AudioData,
@@ -50,6 +69,18 @@ class SileroVadNode:
             return
 
         audio = np.frombuffer(msg.data, dtype=self.depth_type)
+        if not self.nomalization is None:
+            amp = np.max(audio.astype(np.float32, order="C")) / self.nomalization
+            amp_msg = Float32()
+            amp_msg.data = amp
+        else:
+            amp = np.max(audio.astype(np.float32, order="C"))
+            amp_msg = Float32()
+            amp_msg.data = amp
+        
+        #print(amp_msg.data)
+        self._pub_amp.publish(amp_msg)
+
         if len(self.prebuf) == 0:
             self.prebuf = audio
             return
@@ -60,7 +91,10 @@ class SileroVadNode:
         if vals > 33:
             return
 
-        floats = self.prebuf.astype(np.float32, order="C") / self.nomalization
+        if not self.nomalization is None:
+            floats = self.prebuf.astype(np.float32, order="C") / self.nomalization
+        else:
+            floats = self.prebuf.astype(np.float32, order="C")
 
         speech_dict = self.vad_iterator(torch.from_numpy(floats))
         rospy.logdebug(logger_name="SileroVAD", msg=f"{speech_dict}")
@@ -108,6 +142,7 @@ class SileroVadNode:
             res.message = "Silero disabled"
             self.recording = False
             self.data = []
+            self.vad_iterator.reset_states()
 
         rospy.loginfo(logger_name="SileroVAD", msg=f"{res.message}")
         return res
