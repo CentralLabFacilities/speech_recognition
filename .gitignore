@@ -2,3 +2,4 @@ ros_rasa/.rasa
 *.tar.gz
 .vscode
 __pycache__
+build/

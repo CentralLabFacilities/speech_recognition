@@ -171,7 +171,7 @@ class SileroVadNode:
             self.vad_iterator.reset_states()
 
         rospy.loginfo(logger_name="SileroVAD", msg=f"{res.message}")
-        return res
+        return True
 
 
 def main():
