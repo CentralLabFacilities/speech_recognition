@@ -130,6 +130,7 @@ class CLFSpeech(Plugin):
         rospy.loginfo(logger_name="CLFSpeech", msg=f"asr: {self.last_asr}")
         item = QStandardItem(self.last_asr)
         self.text_list_model.insertRow(0, item)
+        self.text_list_model.setRowCount(20)
         #self.text_list_model.appendRow(item)
             
     def callback_amp(self, message):
