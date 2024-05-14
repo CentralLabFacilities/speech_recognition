@@ -19,8 +19,8 @@ install(DIRECTORY resource
   DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}
 )
 
-# Install python scripts
-catkin_install_python(PROGRAMS scripts/rqt_clf_speech
+install(PROGRAMS
+  scripts/rqt_clf_speech
   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
 
