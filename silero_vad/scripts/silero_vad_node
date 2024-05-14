@@ -108,19 +108,24 @@ class SileroVadNode:
         if speech_dict:
             rospy.loginfo(logger_name="SileroVAD", msg=f"{speech_dict}")
 
-            if self.recording:
-                self.data = np.concatenate((self.data, self.prebuf))
-
             if not self.recording and "start" in speech_dict:
                 self.recording = True
                 self.data = self.prebuf
+                self.prebuf = []
+                self._pub_rec.publish(True)
+                return
 
             elif self.recording and "end" in speech_dict:
                 self.recording = False
+                self.data = np.concatenate((self.data, self.prebuf))
                 vad_msg = AudioData()
                 vad_msg.data = self.data.tobytes()
                 self._pub.publish(vad_msg)
+                self.prebuf = []
                 # self.vad_iterator.reset_states() # reset model states after each audio
+
+        if self.recording:
+            self.data = np.concatenate((self.data, self.prebuf))
 
         self._pub_rec.publish(self.recording)
         self.prebuf = []
