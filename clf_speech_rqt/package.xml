@@ -1,0 +1,19 @@
+<?xml version="1.0"?>
+<?xml-model
+  href="http://download.ros.org/schema/package_format3.xsd"
+  schematypens="http://www.w3.org/2001/XMLSchema"?>
+<package format="3">
+  <name>clf_speech_rqt</name>
+  <version>0.0.1</version>
+  <description>Graphical frontend for clf speech packages.</description>
+
+ <license>Apache 2.0</license>
+
+  <maintainer email="lruegeme@techfak.uni-bielefeld.de">Leroy Rügemer</maintainer>
+
+  <buildtool_depend>catkin</buildtool_depend>
+  
+  <export>
+    <rqt_gui plugin="${prefix}/plugin.xml"/>
+  </export>
+</package>

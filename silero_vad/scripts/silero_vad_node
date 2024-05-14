@@ -11,7 +11,7 @@ import rospy
 from std_srvs.srv import SetBool, SetBoolRequest, SetBoolResponse
 
 from audio_common_msgs.msg import AudioData, AudioInfo
-from std_msgs.msg import Float32
+from std_msgs.msg import Float32, Bool
 
 
 class SileroVadNode:
@@ -22,12 +22,11 @@ class SileroVadNode:
         self.data: List[float] = []
 
         self.enabled = self.chunk = True
-
+        self.samplerate = 16000
        
-
         audio_info : AudioInfo = rospy.wait_for_message('audio_info', AudioInfo, timeout=5)
         
-        if not audio_info.sample_rate == 16000:
+        if not audio_info.sample_rate == self.samplerate:
             msg = f"Sample rate needs to be 16000"
             rospy.logerr(logger_name="SileroVAD", msg=msg)
             raise msg
@@ -54,11 +53,15 @@ class SileroVadNode:
 
         self._pub = rospy.Publisher("~vad", AudioData, queue_size=10)
         self._pub_amp = rospy.Publisher("~amp", Float32, queue_size=10)
+        self._pub_rec = rospy.Publisher("~in_rec", Bool, queue_size=1, latch=True)
+        self._pub_enabled = rospy.Publisher("~enabled", Bool, queue_size=1, latch=True)
         self._sub = rospy.Subscriber(
             "audio",
             AudioData,
             self.audio_cb,
         )
+
+        self._pub_enabled.publish(True)
 
         self.one_more = False
         self.prebuf = []
@@ -89,7 +92,8 @@ class SileroVadNode:
         else:
             self.prebuf = np.concatenate((self.prebuf, audio))
 
-        vals = 16000 / self.prebuf.shape[0]
+        vals = self.samplerate / self.prebuf.shape[0]
+        # we dont have 33ms of date
         if vals > 33:
             return
 
@@ -104,24 +108,21 @@ class SileroVadNode:
         if speech_dict:
             rospy.loginfo(logger_name="SileroVAD", msg=f"{speech_dict}")
 
+            if self.recording:
+                self.data = np.concatenate((self.data, self.prebuf))
+
             if not self.recording and "start" in speech_dict:
                 self.recording = True
                 self.data = self.prebuf
-                self.prebuf = []
-                return
 
             elif self.recording and "end" in speech_dict:
                 self.recording = False
-                self.data = np.concatenate((self.data, self.prebuf))
                 vad_msg = AudioData()
                 vad_msg.data = self.data.tobytes()
                 self._pub.publish(vad_msg)
-                self.prebuf = []
                 # self.vad_iterator.reset_states() # reset model states after each audio
 
-        if self.recording:
-            self.data = np.concatenate((self.data, self.prebuf))
-
+        self._pub_rec.publish(self.recording)
         self.prebuf = []
 
     def init_silero(self) -> None:
@@ -171,6 +172,7 @@ class SileroVadNode:
             self.vad_iterator.reset_states()
 
         rospy.loginfo(logger_name="SileroVAD", msg=f"{res.message}")
+        self._pub_enabled.publish(self.enabled)
         return True
 
 

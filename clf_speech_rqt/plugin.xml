@@ -1,0 +1,18 @@
+<library path="src">
+  <class name="CLFSpeech" type="clf_speech_rqt.clf_speech.CLFSpeech"
+         base_class_type="rqt_gui_py::Plugin">
+    <description>
+        Visual interface for managing speech recognition.
+    </description>
+    <qtgui>
+      <group>
+        <label>CLF</label>
+        <icon type="theme">folder</icon>
+        <statustip>Plugins from CLF.</statustip>
+      </group>
+      <label>Controller Manager</label>
+      <icon type="file">resource/speech.png</icon>
+      <statustip>Manage speech recognition</statustip>
+    </qtgui>
+  </class>
+</library>
