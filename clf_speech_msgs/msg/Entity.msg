@@ -1,4 +1,4 @@
 string key
 string value
 string role
-string group
+int group
