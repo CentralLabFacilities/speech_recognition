@@ -164,7 +164,8 @@ class SileroVadNode:
         (_, _, _, VADIterator, _) = utils
         self.vad_iterator = VADIterator(model)
 
-    def enable_cb(self, req: SetBoolRequest, res: SetBoolResponse) -> bool:
+    def enable_cb(self, req: SetBoolRequest):
+        res = SetBoolResponse()
         res.success = True
         self.enabled = req.data
 
@@ -178,7 +179,7 @@ class SileroVadNode:
 
         rospy.loginfo(logger_name="SileroVAD", msg=f"{res.message}")
         self._pub_enabled.publish(self.enabled)
-        return True
+        return res
 
 
 def main():
