@@ -103,12 +103,10 @@ class SileroVadNode:
             floats = self.prebuf.astype(np.float32, order="C")
 
         speech_dict = self.vad_iterator(torch.from_numpy(floats))
-        rospy.logdebug(logger_name="SileroVAD", msg=f"{speech_dict}")
 
         if speech_dict:
-            rospy.loginfo(logger_name="SileroVAD", msg=f"{speech_dict}")
-
             if not self.recording and "start" in speech_dict:
+                self.start_time = speech_dict["start"]
                 self.recording = True
                 self.data = self.prebuf
                 self.prebuf = []
@@ -116,13 +114,15 @@ class SileroVadNode:
                 return
 
             elif self.recording and "end" in speech_dict:
+                self.end_time = speech_dict["end"]
+                rospy.loginfo(logger_name="SileroVAD", msg=f"recorded speech segment: {self.end_time - self.start_time}")
                 self.recording = False
                 self.data = np.concatenate((self.data, self.prebuf))
                 vad_msg = AudioData()
                 vad_msg.data = self.data.tobytes()
                 self._pub.publish(vad_msg)
                 self.prebuf = []
-                # self.vad_iterator.reset_states() # reset model states after each audio
+                self.vad_iterator.reset_states() # reset model states after each audio
 
         if self.recording:
             self.data = np.concatenate((self.data, self.prebuf))

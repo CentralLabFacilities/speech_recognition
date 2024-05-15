@@ -8,7 +8,7 @@ from threading import Lock
 
 import numpy as np
 import torch
-import whisper
+import faster_whisper
 
 import time
 
@@ -18,12 +18,7 @@ from std_msgs.msg import String
 
 class WhisperNode:
     def __init__(self, model_or_path, silence_db, language, n_mels):
-        self.whisper_model_ = whisper.load_model(model_or_path)
-
-        if language != "multi":
-            self.whisper_options_ = whisper.DecodingOptions(language=language)
-        else:
-            self.whisper_options_ = whisper.DecodingOptions()
+        
 
         self.pub = rospy.Publisher("~text", String, queue_size=1)
         self.n_mels = n_mels
@@ -58,7 +53,7 @@ class WhisperNode:
         if torch.cuda.is_available():
             rospy.loginfo("CUDA is available. Using GPU.")
             self.device_ = "cuda"
-        self.whisper_model_ = self.whisper_model_.to(self.device_)
+        self.whisper_model_ = faster_whisper.WhisperModel(model_or_path, device=self.device_, compute_type="float16")
         rospy.loginfo("Whisper initialized")
 
     def transcribe_audio(self, data: AudioData):
@@ -66,21 +61,25 @@ class WhisperNode:
         start = time.time()
         audio_data = np.frombuffer(data.data, dtype=self.depth_type)
         if self.nomalization is None:
-            audio = torch.from_numpy(audio_data)
+            pass
         else:
-            audio = np.divide(audio_data, self.nomalization)
-            audio = torch.from_numpy(audio).float()
-        audio = whisper.pad_or_trim(audio)
-        mel = whisper.log_mel_spectrogram(audio, self.n_mels, device=self.device_).to(
-            self.device_
-        )
-        result = whisper.decode(self.whisper_model_, mel, self.whisper_options_)
+            audio_data = np.divide(audio_data, self.nomalization)
+        #audio = whisper.pad_or_trim(audio)
+        #mel = whisper.log_mel_spectrogram(audio, self.n_mels, device=self.device_).to(
+        #    self.device_
+        #)
+        #result = whisper.decode(self.whisper_model_, mel, self.whisper_options_)
+        segments, info = self.whisper_model_.transcribe(audio_data, beam_size=5)
+        print(info)
+        print("\n")
         end = time.time()
-        if result.no_speech_prob < 0.7:
-            rospy.loginfo(f"speech result: '{result.text}' , took: {end - start}")
-            self.pub.publish(result.text)
-        else:
-            rospy.logwarn(f"no speech {result.no_speech_prob}, TEXT: {result.text}")
+        for segment in segments:
+            print(f"{segment}")
+            if segment.no_speech_prob < 0.7:
+                rospy.loginfo(f"speech result: '{segment.text}' , took: {end - start}")
+                self.pub.publish(segment.text)
+            else:
+                rospy.logwarn(f"no speech {segment.no_speech_prob}, TEXT: {segment.text}")
 
 
 if __name__ == "__main__":
