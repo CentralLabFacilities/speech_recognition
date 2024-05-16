@@ -3,13 +3,13 @@
   <arg name="whisper_model" default="tiny.en"/>
   <!-- Input size is 128 for large-->
   <arg name="n_mels" default="80"/> 
-  <arg name="silence_db" default="35"/>
-  <arg name="language" default="english"/>
+  <arg name="language" default="en"/>
 
   <node name="ros_whisper" pkg="ros_whisper" type="whisper_transcribe_node" output="screen">
     <remap from="~input" to="/silero_vad/vad"/>
     <param name="model_or_path" value="$(arg whisper_model)"/>
-    <param name="silence_db" value="$(arg silence_db)"/>
+    <param name="language" value="$(arg language)"/>
+    <param name="n_mels" value="$(arg n_mels)"/>
   </node>
 
 </launch>

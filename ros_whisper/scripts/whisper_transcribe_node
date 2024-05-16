@@ -17,7 +17,7 @@ from std_msgs.msg import String
 
 
 class WhisperNode:
-    def __init__(self, model_or_path, silence_db, language, n_mels):
+    def __init__(self, model_or_path, language, n_mels):
         self.whisper_model_ = whisper.load_model(model_or_path)
 
         if language != "multi":
@@ -88,11 +88,10 @@ if __name__ == "__main__":
     # Start ROS node
     rospy.init_node("ros_whisper_transcribe")
     model_or_path = rospy.get_param("~model_or_path", "base.en")
-    silence_db = rospy.get_param("~silence_db", 35)
     language = rospy.get_param("~language", "en")
     n_mels = rospy.get_param("~n_mels", 80)
     rospy.loginfo(f"using model: {model_or_path}")
-    node = WhisperNode(model_or_path, silence_db, language, n_mels)
+    node = WhisperNode(model_or_path, language, n_mels)
 
     rospy.Subscriber("~input", AudioData, node.transcribe_audio)
 

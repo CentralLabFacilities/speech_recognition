@@ -17,11 +17,10 @@ from std_msgs.msg import String
 
 
 class WhisperNode:
-    def __init__(self, model_or_path, silence_db, language, n_mels):
+    def __init__(self, model_or_path, language = "en", compute_type = "default"):
         
 
         self.pub = rospy.Publisher("~text", String, queue_size=1)
-        self.n_mels = n_mels
 
         self.max_length = 8.0
 
@@ -53,7 +52,7 @@ class WhisperNode:
         if torch.cuda.is_available():
             rospy.loginfo("CUDA is available. Using GPU.")
             self.device_ = "cuda"
-        self.whisper_model_ = faster_whisper.WhisperModel(model_or_path, device=self.device_, compute_type="float16")
+        self.whisper_model_ = faster_whisper.WhisperModel(model_or_path, device=self.device_, compute_type=compute_type)
         rospy.loginfo("Whisper initialized")
 
     def transcribe_audio(self, data: AudioData):
@@ -70,11 +69,12 @@ class WhisperNode:
         #)
         #result = whisper.decode(self.whisper_model_, mel, self.whisper_options_)
         segments, info = self.whisper_model_.transcribe(audio_data, beam_size=5)
+        print("INFO:")
         print(info)
-        print("\n")
+        print("SEGMENTS:")
         end = time.time()
         for segment in segments:
-            print(f"{segment}")
+            print(f"  {segment}")
             if segment.no_speech_prob < 0.7:
                 rospy.loginfo(f"speech result: '{segment.text}' , took: {end - start}")
                 self.pub.publish(segment.text)
@@ -87,11 +87,10 @@ if __name__ == "__main__":
     # Start ROS node
     rospy.init_node("ros_whisper_transcribe")
     model_or_path = rospy.get_param("~model_or_path", "base.en")
-    silence_db = rospy.get_param("~silence_db", 35)
     language = rospy.get_param("~language", "en")
-    n_mels = rospy.get_param("~n_mels", 80)
+    quant = rospy.get_param("~quant", "default")
     rospy.loginfo(f"using model: {model_or_path}")
-    node = WhisperNode(model_or_path, silence_db, language, n_mels)
+    node = WhisperNode(model_or_path, language, quant)
 
     rospy.Subscriber("~input", AudioData, node.transcribe_audio)
 
