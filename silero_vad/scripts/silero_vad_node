@@ -13,18 +13,21 @@ from std_srvs.srv import SetBool, SetBoolRequest, SetBoolResponse
 from audio_common_msgs.msg import AudioData, AudioInfo
 from std_msgs.msg import Float32, Bool
 
+from clf_speech_msgs.srv import SetFloat32, SetFloat32Request, SetFloat32Response
 
 class SileroVadNode:
 
-    def __init__(self) -> None:
+    def __init__(self, start_amp = 0.5) -> None:
 
         self.recording = False
         self.data: List[float] = []
+        self.start_amp = start_amp
 
         self.enabled = self.chunk = True
         self.samplerate = 16000
        
-        audio_info : AudioInfo = rospy.wait_for_message('audio_info', AudioInfo, timeout=5)
+        rospy.loginfo(logger_name="SileroVAD", msg=f"waiting for audio_info...")
+        audio_info : AudioInfo = rospy.wait_for_message('audio_info', AudioInfo, timeout=10)
         
         if not audio_info.sample_rate == self.samplerate:
             msg = f"Sample rate needs to be 16000"
@@ -46,14 +49,21 @@ class SileroVadNode:
             msg = f"unhandled audio format"
             rospy.logerr(logger_name="SileroVAD", msg=msg)
             raise msg
+
+        rospy.loginfo(logger_name="SileroVAD", msg=f"normalization: {self.nomalization}")
               
         self.init_silero()
 
         self._enable_srv = rospy.Service("~enable_vad", SetBool, self.enable_cb)
+        self._min_amp_srv = rospy.Service("~set_min_amp", SetFloat32, self.set_min_amp_cb)
 
         self._pub = rospy.Publisher("~vad", AudioData, queue_size=10)
         self._pub_amp = rospy.Publisher("~amp", Float32, queue_size=10)
         self._pub_rec = rospy.Publisher("~in_rec", Bool, queue_size=1, latch=True)
+        self._pub_min_amp = rospy.Publisher("~min_amp", Float32, queue_size=1, latch=True)
+        amp_msg = Float32()
+        amp_msg.data = self.start_amp
+        self._pub_min_amp.publish(amp_msg)
         self._pub_enabled = rospy.Publisher("~enabled", Bool, queue_size=1, latch=True)
         self._sub = rospy.Subscriber(
             "audio",
@@ -74,18 +84,7 @@ class SileroVadNode:
             return
 
         audio = np.frombuffer(msg.data, dtype=self.depth_type)
-        if not self.nomalization is None:
-            amp = np.max(audio.astype(np.float32, order="C")) / self.nomalization
-            amp_msg = Float32()
-            amp_msg.data = amp
-        else:
-            amp = np.max(audio.astype(np.float32, order="C"))
-            amp_msg = Float32()
-            amp_msg.data = amp
         
-        #print(amp_msg.data)
-        self._pub_amp.publish(amp_msg)
-
         if len(self.prebuf) == 0:
             self.prebuf = audio
             return
@@ -102,7 +101,18 @@ class SileroVadNode:
         else:
             floats = self.prebuf.astype(np.float32, order="C")
 
-        speech_dict = self.vad_iterator(torch.from_numpy(floats))
+        amp = np.max(floats)
+        amp_msg = Float32()
+        amp_msg.data = amp
+
+        #print(amp_msg.data)
+        self._pub_amp.publish(amp_msg)
+
+        # Dont start recording until min amplitute is reached?
+        if not self.recording and amp < self.start_amp:
+            speech_dict = False
+        else:
+            speech_dict = self.vad_iterator(torch.from_numpy(floats))
 
         if speech_dict:
             if not self.recording and "start" in speech_dict:
@@ -180,11 +190,31 @@ class SileroVadNode:
         rospy.loginfo(logger_name="SileroVAD", msg=f"{res.message}")
         self._pub_enabled.publish(self.enabled)
         return res
+    
+    def set_min_amp_cb(self, req: SetFloat32Request):
+        res = SetFloat32Response()
+        if req.data > 1.0 or req.data < 0.0:
+            res.success = False
+        else:
+            res.success = True
+
+        self.start_amp = req.data
+        res.message = f"set min amp to {self.start_amp }"
+
+        amp_msg = Float32()
+        amp_msg.data = self.start_amp
+
+        self._pub_min_amp.publish(amp_msg)
+
+        rospy.loginfo(logger_name="SileroVAD", msg=f"{res.message}")
+        self._pub_enabled.publish(self.enabled)
+        return res
 
 
 def main():
     rospy.init_node("silero_vad")
-    node = SileroVadNode()
+    start_amp = rospy.get_param("~start_amp", 0.0)
+    node = SileroVadNode(start_amp)
     rospy.spin()
 
 

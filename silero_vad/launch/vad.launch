@@ -1,7 +1,5 @@
 <launch>
-  <!-- Model to use can be path or one of the types e.g. '/path/to/checkpoint.pt' or 'base.en'-->
-  <arg name="whisper_model" default="tiny.en"/>
-  <arg name="silence_db" default="35"/>
+  <arg name="start_amp" default="0.0"/>
 
   <!-- playback audio -->
   <arg name="debug" default="false"/>
@@ -31,8 +29,7 @@
   </node>
 
   <node name="silero_vad" pkg="silero_vad" type="silero_vad_node" output="screen">
-    <param name="model_or_path" value="$(arg whisper_model)"/>
-    <param name="silence_db" value="$(arg silence_db)"/>
+    <param name="start_amp" value="$(arg start_amp)"/>
   </node>
 
   <!-- playback audio -->

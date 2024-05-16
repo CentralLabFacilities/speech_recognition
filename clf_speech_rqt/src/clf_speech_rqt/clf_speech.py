@@ -13,6 +13,7 @@ from python_qt_binding.QtGui import QCursor, QFont, QIcon, QStandardItem, QStand
 from qt_gui.plugin import Plugin
 
 from std_msgs.msg import Float32, Bool, String
+from clf_speech_msgs.srv import SetFloat32, SetFloat32Request, SetFloat32Response
 
 
 class CLFSpeech(Plugin):
@@ -32,10 +33,17 @@ class CLFSpeech(Plugin):
         self.enabled_lock = threading.Lock()
         self.vad_enabled = False
 
+        
+
 
         # Initialize members
         self._audio_ns = "/silero_vad"  # Namespace of the audio recording
         self._asr_topic = "/ros_whisper/text"
+
+        try:
+            self.min_amp = int(rospy.wait_for_message(f'{self._audio_ns}/min_amp', Float32, timeout=10).data * 100)
+        except:
+            self.min_amp = 0
 
         # Create QWidget and extend it with all the attributes and children
         # from the UI file
@@ -46,6 +54,8 @@ class CLFSpeech(Plugin):
                                'clf_speech.ui')
         loadUi(ui_file, self._widget)
         self._widget.setObjectName('ClfSpeechUi')
+
+        self._widget.audio_slider.setValue(self.min_amp)
 
         path = rp.get_path('clf_speech_rqt')
         self._pixmaps = {'recording': QPixmap(path + '/resource/led_green.png'),
@@ -87,6 +97,12 @@ class CLFSpeech(Plugin):
 
     def refresh_topics(self):
         #rospy.loginfo(logger_name="CLFSpeech", msg=f"REFRESH")
+        if self.min_amp != self._widget.audio_slider.value():
+            self.min_amp = self._widget.audio_slider.value()
+            amp_rec = SetFloat32Request()
+            amp_rec.data = self.min_amp / 100.0
+            res = self.service_set_amp(amp_rec)
+
         with self.amp_lock:
             self._widget.audo_bar.setValue(int(self.last_amp * 100))
 
@@ -119,9 +135,10 @@ class CLFSpeech(Plugin):
         rospy.loginfo(logger_name="CLFSpeech", msg=f"subscribe to {topic}")
         self.asr_subscriber = rospy.Subscriber(
                 topic, String, self.callback_asr)
-        
         self.publisher = rospy.Publisher(topic, String, queue_size=1)
 
+        topic = self._audio_ns + "/set_min_amp"
+        self.service_set_amp = rospy.ServiceProxy(topic, SetFloat32)
 
         self._timer_refresh_topics.start()
 

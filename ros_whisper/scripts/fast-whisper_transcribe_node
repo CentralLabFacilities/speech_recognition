@@ -19,11 +19,10 @@ from std_msgs.msg import String
 class WhisperNode:
     def __init__(self, model_or_path, language = "en", compute_type = "default"):
         
-
         self.pub = rospy.Publisher("~text", String, queue_size=1)
-
         self.max_length = 8.0
 
+        rospy.loginfo(logger_name="Whisper", msg=f"waiting for audio_info...")
         audio_info : AudioInfo = rospy.wait_for_message('audio_info', AudioInfo, timeout=5)
         
         if not audio_info.sample_rate == 16000:

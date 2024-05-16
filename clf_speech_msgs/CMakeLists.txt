@@ -12,6 +12,11 @@ add_message_files(
 	Entity.msg
 )
 
+add_service_files(
+	FILES
+	SetFloat32.srv
+)
+
 generate_messages(
 )
 
