@@ -3,6 +3,7 @@ import os
 import rospkg
 import rospy
 import threading
+from .TableModel import TableModel
 
 from python_qt_binding import loadUi
 from python_qt_binding.QtCore import QAbstractTableModel, QModelIndex, Qt,\
@@ -14,6 +15,7 @@ from qt_gui.plugin import Plugin
 
 from std_msgs.msg import Float32, Bool, String
 from clf_speech_msgs.srv import SetFloat32, SetFloat32Request, SetFloat32Response
+from clf_speech_msgs.msg import Entity, NLU
 
 
 class CLFSpeech(Plugin):
@@ -33,15 +35,13 @@ class CLFSpeech(Plugin):
         self.enabled_lock = threading.Lock()
         self.vad_enabled = False
 
-        
-
-
         # Initialize members
         self._audio_ns = "/silero_vad"  # Namespace of the audio recording
         self._asr_topic = "/ros_whisper/text"
+        self._nlu_topic = "/rasa/nlu"
 
         try:
-            self.min_amp = int(rospy.wait_for_message(f'{self._audio_ns}/min_amp', Float32, timeout=10).data * 100)
+            self.min_amp = int(rospy.wait_for_message(f'{self._audio_ns}/min_amp', Float32, timeout=2).data * 100)
         except:
             self.min_amp = 0
 
@@ -78,6 +78,13 @@ class CLFSpeech(Plugin):
         self.text_list_model = QStandardItemModel()
         self._widget.asr_list.setModel(self.text_list_model)
         self._widget.text_input.returnPressed.connect(self.send_text) 
+
+        self.nlu_model = TableModel()
+        self._widget.nlu_table.setModel(self.nlu_model)
+        #self._widget.nlu_table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeToContents)
+        self._widget.nlu_table.setColumnWidth(0,180)
+        self._widget.nlu_table.setColumnWidth(1,360)
+        self._widget.nlu_table.setColumnWidth(2,400)
         
         # Add widget to the user interface
         context.add_widget(self._widget)
@@ -131,6 +138,11 @@ class CLFSpeech(Plugin):
         self.rec_subscriber = rospy.Subscriber(
                 topic, Bool, self.callback_recording)
         
+        topic = self._nlu_topic
+        rospy.loginfo(logger_name="CLFSpeech", msg=f"subscribe to {topic}")
+        self.rec_subscriber = rospy.Subscriber(
+                topic, NLU, self.callback_nlu)
+        
         topic = self._asr_topic
         rospy.loginfo(logger_name="CLFSpeech", msg=f"subscribe to {topic}")
         self.asr_subscriber = rospy.Subscriber(
@@ -149,6 +161,12 @@ class CLFSpeech(Plugin):
         self.text_list_model.insertRow(0, item)
         self.text_list_model.setRowCount(20)
         #self.text_list_model.appendRow(item)
+
+    def callback_nlu(self, message):
+        self.last_nlu = message
+        rospy.loginfo(logger_name="CLFSpeech", msg=f"nlu for : '{self.last_nlu.text}' intent:{self.last_nlu.intent}")
+        self.nlu_model.add_nlu(self.last_nlu)
+        self._widget.nlu_table.viewport().update()
             
     def callback_amp(self, message):
         with self.amp_lock:
