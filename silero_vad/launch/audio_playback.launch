@@ -3,7 +3,6 @@
   <arg name="device" default="default"/>
 
   <arg name="dst" default="appsink"/>
-  <arg name="device" default=""/>
   <arg name="format" default="wave"/>
   <arg name="channels" default="1"/>
   <arg name="depth" default="16"/>
@@ -13,7 +12,7 @@
   <node name="audio_play" pkg="audio_play" type="audio_play" output="screen">
     <remap from="audio" to="/silero_vad/vad" />
     <param name="dst" value="alsasink"/>
-    <param name="device" value="$(arg debug_device)"/>
+    <param name="device" value="$(arg device)"/>
     <param name="do_timestamp" value="False"/>
     <param name="format" value="$(arg format)"/>
     <param name="channels" value="$(arg channels)"/>
