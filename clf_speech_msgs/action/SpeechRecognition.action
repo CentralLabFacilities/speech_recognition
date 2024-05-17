@@ -1,0 +1,9 @@
+# Request
+float32 speech_treshold
+---
+# Result
+clf_speech_msgs/NLU[] nlus
+---
+# Feedback
+string text
+clf_speech_msgs/NLU nlu

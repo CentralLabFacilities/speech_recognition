@@ -17,19 +17,21 @@ from std_msgs.msg import String
 
 
 class WhisperNode:
-    def __init__(self, model_or_path, language = "en", compute_type = "default"):
-        
+    def __init__(self, model_or_path, language="en", compute_type="default"):
+
         self.pub = rospy.Publisher("~text", String, queue_size=1)
         self.max_length = 8.0
 
         rospy.loginfo(logger_name="Whisper", msg=f"waiting for audio_info...")
-        audio_info : AudioInfo = rospy.wait_for_message('audio_info', AudioInfo, timeout=5)
-        
+        audio_info: AudioInfo = rospy.wait_for_message(
+            "audio_info", AudioInfo, timeout=5
+        )
+
         if not audio_info.sample_rate == 16000:
             msg = f"Sample rate needs to be 16000"
             rospy.logerr(logger_name="Whisper", msg=msg)
             raise msg
-        
+
         if not audio_info.channels == 1:
             msg = f"Cant use non mono audio"
             rospy.logerr(logger_name="Whisper", msg=msg)
@@ -51,7 +53,9 @@ class WhisperNode:
         if torch.cuda.is_available():
             rospy.loginfo("CUDA is available. Using GPU.")
             self.device_ = "cuda"
-        self.whisper_model_ = faster_whisper.WhisperModel(model_or_path, device=self.device_, compute_type=compute_type)
+        self.whisper_model_ = faster_whisper.WhisperModel(
+            model_or_path, device=self.device_, compute_type=compute_type
+        )
         rospy.loginfo("Whisper initialized")
 
     def transcribe_audio(self, data: AudioData):
@@ -62,17 +66,20 @@ class WhisperNode:
             pass
         else:
             audio_data = np.divide(audio_data, self.nomalization)
-        #audio = whisper.pad_or_trim(audio)
-        #mel = whisper.log_mel_spectrogram(audio, self.n_mels, device=self.device_).to(
+        # audio = whisper.pad_or_trim(audio)
+        # mel = whisper.log_mel_spectrogram(audio, self.n_mels, device=self.device_).to(
         #    self.device_
-        #)
-        #result = whisper.decode(self.whisper_model_, mel, self.whisper_options_)
+        # )
+        # result = whisper.decode(self.whisper_model_, mel, self.whisper_options_)
         segments, info = self.whisper_model_.transcribe(audio_data, beam_size=5)
-        for language in info.all_language_probs:
-            print(f"Detected language '{language[0]}' with probability {language[1]:1.4f}")
-            if language[1] < 0.01:
-                break
-        #print("SEGMENTS:")
+        if info.all_language_probs:
+            for language in info.all_language_probs:
+                print(
+                    f"Detected language '{language[0]}' with probability {language[1]:1.4f}"
+                )
+                if language[1] < 0.01:
+                    break
+        # print("SEGMENTS:")
         end = time.time()
         for segment in segments:
             print(f"  {segment}")
@@ -80,7 +87,9 @@ class WhisperNode:
                 rospy.loginfo(f"speech result: '{segment.text}' , took: {end - start}")
                 self.pub.publish(segment.text)
             else:
-                rospy.logwarn(f"no speech {segment.no_speech_prob}, TEXT: {segment.text}")
+                rospy.logwarn(
+                    f"no speech {segment.no_speech_prob}, TEXT: {segment.text}"
+                )
 
 
 if __name__ == "__main__":

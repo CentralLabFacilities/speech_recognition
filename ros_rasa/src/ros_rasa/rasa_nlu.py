@@ -2,7 +2,6 @@ from rasa.engine.constants import PLACEHOLDER_MESSAGE
 from rasa.core.channels import UserMessage
 from rasa.core.processor import MessageProcessor
 
-
 class RasaNLU(object):
     def __init__(self, model, train=False, nlu_file="", config=""):
         """
@@ -16,8 +15,9 @@ class RasaNLU(object):
             from rasa.model_training import train_nlu
 
             mod = train_nlu(nlu_data=nlu_file, config=config, output=model)
-
-        _, self.model_metadata, self.graph_runner = MessageProcessor._load_model(model)
+            _, self.model_metadata, self.graph_runner = MessageProcessor._load_model(mod)
+        else:
+            _, self.model_metadata, self.graph_runner = MessageProcessor._load_model(model)
 
     def inference(self, text):
         # print(f"inference on '{text}'")

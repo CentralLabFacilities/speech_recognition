@@ -3,11 +3,12 @@ from PyQt5 import QtCore, QtGui, QtWidgets
 from PyQt5.QtCore import Qt
 from clf_speech_msgs.msg import Entity, NLU
 
+
 class TableModel(QtCore.QAbstractTableModel):
     def __init__(self):
         super(TableModel, self).__init__()
         self._data = [
-          ["", "", ""],
+            ["", "", ""],
         ]
 
     def add_nlu(self, nlu: NLU):
@@ -20,11 +21,11 @@ class TableModel(QtCore.QAbstractTableModel):
     def headerData(self, col, orientation, role):
         if orientation == Qt.Horizontal and role == Qt.DisplayRole:
             if col == 0:
-                return 'intent'
+                return "intent"
             elif col == 1:
-                return 'entities'
+                return "entities"
             elif col == 2:
-                return 'text'
+                return "text"
         else:
             return None
 
@@ -34,7 +35,6 @@ class TableModel(QtCore.QAbstractTableModel):
                 return self._data[index.row()][index.column()]
             else:
                 return ""
-            
 
     def rowCount(self, index):
         return 5

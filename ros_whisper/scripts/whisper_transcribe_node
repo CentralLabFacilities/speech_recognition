@@ -30,13 +30,15 @@ class WhisperNode:
 
         self.max_length = 8.0
 
-        audio_info : AudioInfo = rospy.wait_for_message('audio_info', AudioInfo, timeout=5)
-        
+        audio_info: AudioInfo = rospy.wait_for_message(
+            "audio_info", AudioInfo, timeout=5
+        )
+
         if not audio_info.sample_rate == 16000:
             msg = f"Sample rate needs to be 16000"
             rospy.logerr(logger_name="Whisper", msg=msg)
             raise msg
-        
+
         if not audio_info.channels == 1:
             msg = f"Cant use non mono audio"
             rospy.logerr(logger_name="Whisper", msg=msg)

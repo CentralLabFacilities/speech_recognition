@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 
 
-
 import argparse
 
 import sys
@@ -29,7 +28,6 @@ if __name__ == "__main__":
         parser.print_usage()
         sys.exit(1)
 
-
     from rasa.model_training import train_nlu
     from rasa.engine.constants import PLACEHOLDER_MESSAGE
     from rasa.core.channels import UserMessage
@@ -44,20 +42,20 @@ if __name__ == "__main__":
     print("Model finished training")
     _, model_metadata, graph_runner = MessageProcessor._load_model(mod)
 
-    print("""
+    print(
+"""
 ########################
 Model Trained and Loaded
 ########################
-
-          """)
+"""
+    )
 
     while True:
         var = input("Please enter something: ")
         message = UserMessage(var)
 
         results = graph_runner.run(
-            inputs={PLACEHOLDER_MESSAGE: [message]},
-            targets=[model_metadata.nlu_target]
+            inputs={PLACEHOLDER_MESSAGE: [message]}, targets=[model_metadata.nlu_target]
         )
         for output in results[model_metadata.nlu_target]:
             kv = output.as_dict()
@@ -67,7 +65,11 @@ Model Trained and Loaded
             )
             for entity in kv["entities"]:
                 if "role" in entity:
-                    print(f"  Entity:'{entity['value']}', type:'{entity['entity']}':{entity['confidence_entity']:1.2f}, role:'{entity['role']}':{entity['confidence_role']:1.2f}")
+                    print(
+                        f"  Entity:'{entity['value']}', type:'{entity['entity']}':{entity['confidence_entity']:1.2f}, role:'{entity['role']}':{entity['confidence_role']:1.2f}"
+                    )
                 else:
-                    print(f"  Entity:'{entity['value']}', type:'{entity['entity']}':{entity['confidence_entity']:1.2f}")
+                    print(
+                        f"  Entity:'{entity['value']}', type:'{entity['entity']}':{entity['confidence_entity']:1.2f}"
+                    )
             print()

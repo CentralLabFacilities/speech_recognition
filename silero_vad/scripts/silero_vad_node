@@ -5,7 +5,7 @@ import numpy as np
 from typing import List
 import sys
 
-import os.path 
+import os.path
 
 import rospy
 from std_srvs.srv import SetBool, SetBoolRequest, SetBoolResponse
@@ -15,9 +15,10 @@ from std_msgs.msg import Float32, Bool
 
 from clf_speech_msgs.srv import SetFloat32, SetFloat32Request, SetFloat32Response
 
+
 class SileroVadNode:
 
-    def __init__(self, start_amp = 0.5) -> None:
+    def __init__(self, start_amp=0.5) -> None:
 
         self.recording = False
         self.data: List[float] = []
@@ -25,15 +26,17 @@ class SileroVadNode:
 
         self.enabled = self.chunk = True
         self.samplerate = 16000
-       
+
         rospy.loginfo(logger_name="SileroVAD", msg=f"waiting for audio_info...")
-        audio_info : AudioInfo = rospy.wait_for_message('audio_info', AudioInfo, timeout=10)
-        
+        audio_info: AudioInfo = rospy.wait_for_message(
+            "audio_info", AudioInfo, timeout=10
+        )
+
         if not audio_info.sample_rate == self.samplerate:
             msg = f"Sample rate needs to be 16000"
             rospy.logerr(logger_name="SileroVAD", msg=msg)
             raise msg
-        
+
         if not audio_info.channels == 1:
             msg = f"Cant use non mono audio"
             rospy.logerr(logger_name="SileroVAD", msg=msg)
@@ -50,17 +53,23 @@ class SileroVadNode:
             rospy.logerr(logger_name="SileroVAD", msg=msg)
             raise msg
 
-        rospy.loginfo(logger_name="SileroVAD", msg=f"normalization: {self.nomalization}")
-              
+        rospy.loginfo(
+            logger_name="SileroVAD", msg=f"normalization: {self.nomalization}"
+        )
+
         self.init_silero()
 
         self._enable_srv = rospy.Service("~enable_vad", SetBool, self.enable_cb)
-        self._min_amp_srv = rospy.Service("~set_min_amp", SetFloat32, self.set_min_amp_cb)
+        self._min_amp_srv = rospy.Service(
+            "~set_min_amp", SetFloat32, self.set_min_amp_cb
+        )
 
         self._pub = rospy.Publisher("~vad", AudioData, queue_size=10)
         self._pub_amp = rospy.Publisher("~amp", Float32, queue_size=10)
         self._pub_rec = rospy.Publisher("~in_rec", Bool, queue_size=1, latch=True)
-        self._pub_min_amp = rospy.Publisher("~min_amp", Float32, queue_size=1, latch=True)
+        self._pub_min_amp = rospy.Publisher(
+            "~min_amp", Float32, queue_size=1, latch=True
+        )
         amp_msg = Float32()
         amp_msg.data = self.start_amp
         self._pub_min_amp.publish(amp_msg)
@@ -84,7 +93,7 @@ class SileroVadNode:
             return
 
         audio = np.frombuffer(msg.data, dtype=self.depth_type)
-        
+
         if len(self.prebuf) == 0:
             self.prebuf = audio
             return
@@ -105,7 +114,7 @@ class SileroVadNode:
         amp_msg = Float32()
         amp_msg.data = amp
 
-        #print(amp_msg.data)
+        # print(amp_msg.data)
         self._pub_amp.publish(amp_msg)
 
         # Dont start recording until min amplitute is reached?
@@ -125,14 +134,17 @@ class SileroVadNode:
 
             elif self.recording and "end" in speech_dict:
                 self.end_time = speech_dict["end"]
-                rospy.loginfo(logger_name="SileroVAD", msg=f"recorded speech segment: {self.end_time - self.start_time}")
+                rospy.loginfo(
+                    logger_name="SileroVAD",
+                    msg=f"recorded speech segment: {self.end_time - self.start_time}",
+                )
                 self.recording = False
                 self.data = np.concatenate((self.data, self.prebuf))
                 vad_msg = AudioData()
                 vad_msg.data = self.data.tobytes()
                 self._pub.publish(vad_msg)
                 self.prebuf = []
-                self.vad_iterator.reset_states() # reset model states after each audio
+                self.vad_iterator.reset_states()  # reset model states after each audio
 
         if self.recording:
             self.data = np.concatenate((self.data, self.prebuf))
@@ -144,22 +156,28 @@ class SileroVadNode:
         try:
             # try loading from cache
             import sys
-            cache = os.path.abspath(os.path.expanduser("~/.cache/torch/hub/snakers4_silero-vad_master"))
+
+            cache = os.path.abspath(
+                os.path.expanduser("~/.cache/torch/hub/snakers4_silero-vad_master")
+            )
             sys.path.append(cache)
             from utils_vad import (
-                       get_speech_timestamps,
-                       save_audio,
-                       read_audio,
-                       VADIterator,
-                       collect_chunks,
-                       OnnxWrapper)
-            model_dir = os.path.join(cache, 'files')
-            model = OnnxWrapper(os.path.join(model_dir, 'silero_vad.onnx'), False)
-            utils = (get_speech_timestamps,
+                get_speech_timestamps,
                 save_audio,
                 read_audio,
                 VADIterator,
-                collect_chunks
+                collect_chunks,
+                OnnxWrapper,
+            )
+
+            model_dir = os.path.join(cache, "files")
+            model = OnnxWrapper(os.path.join(model_dir, "silero_vad.onnx"), False)
+            utils = (
+                get_speech_timestamps,
+                save_audio,
+                read_audio,
+                VADIterator,
+                collect_chunks,
             )
             rospy.loginfo(logger_name="SileroVAD", msg=f"loaded model from cache")
         except Exception as e:
@@ -190,7 +208,7 @@ class SileroVadNode:
         rospy.loginfo(logger_name="SileroVAD", msg=f"{res.message}")
         self._pub_enabled.publish(self.enabled)
         return res
-    
+
     def set_min_amp_cb(self, req: SetFloat32Request):
         res = SetFloat32Response()
         if req.data > 1.0 or req.data < 0.0:

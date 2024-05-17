@@ -2,15 +2,16 @@
 
 import os
 import sys
+import threading
 
 # ROS
 import rospy
 
-from ros_rasa import rasa_nlu
-
 from clf_speech_msgs.msg import Entity, NLU
+from clf_speech_msgs.srv import Understand, UnderstandRequest, UnderstandResponse
 import std_msgs.msg
 
+from ros_rasa import rasa_nlu
 
 class RASANode:
     def __init__(self, model):
@@ -18,12 +19,15 @@ class RASANode:
         rospy.loginfo(logger_name="RASANode", msg=f" - model={model}")
 
         self.recognizer = rasa_nlu.RasaNLU(model)
+        self.lock = threading.Lock()
 
+        self.nlu_srv = rospy.Service("~understand", Understand, self.understand_cb)
         self.result_pub = rospy.Publisher("~nlu", NLU, queue_size=1)
+        self.sub = rospy.Subscriber("~input", std_msgs.msg.String, self.new_message)
 
-    def new_message(self, data):
-
-        result = self.recognizer.inference(data.data)
+    def parse(self, text: str) -> NLU:
+        with self.lock:
+            result = self.recognizer.inference(text)
 
         nlu = NLU()
 
@@ -35,10 +39,20 @@ class RASANode:
             e = Entity()
             e.key = entity["entity"]
             e.value = entity["value"]
-            e.role = entity.get('role', "")
-            e.group = entity.get('group', -1)
+            e.role = entity.get("role", "")
+            e.group = entity.get("group", -1)
             nlu.entities.append(e)
 
+        return nlu
+
+    def understand_cb(self, req: UnderstandRequest) -> UnderstandResponse:
+        res = UnderstandResponse()
+        res.nlu = self.parse(req.text)
+        rospy.loginfo(logger_name="RASANode", msg=f"Got request for: {res.nlu}")
+        return res
+
+    def new_message(self, data):
+        nlu = self.parse(data.data)
         self.result_pub.publish(nlu)
         rospy.loginfo(logger_name="RASANode", msg=f"{nlu}")
 
@@ -55,8 +69,6 @@ if __name__ == "__main__":
         sys.exit(1)
 
     node = RASANode(_model)
-
-    rospy.Subscriber("~input", std_msgs.msg.String, node.new_message)
 
     rospy.loginfo(logger_name="RASANode", msg="\nRASA running")
 

@@ -1,6 +1,6 @@
 <launch>
   <!-- Model to use can be path or one of the types e.g. '/path/to/checkpoint.pt' or 'base.en'-->
-  <arg name="whisper_model" default="tiny.en"/>
+  <arg name="whisper_model" default="small.en"/>
   <!-- Input size is 128 for large-->
   <arg name="n_mels" default="80"/> 
   <arg name="language" default="en"/>
