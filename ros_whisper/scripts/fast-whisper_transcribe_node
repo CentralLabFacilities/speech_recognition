@@ -72,7 +72,7 @@ class WhisperNode:
         # )
         # result = whisper.decode(self.whisper_model_, mel, self.whisper_options_)
         segments, info = self.whisper_model_.transcribe(audio_data, beam_size=5)
-        if info.all_language_probs:
+        if info.all_language_probs is not None:
             for language in info.all_language_probs:
                 print(
                     f"Detected language '{language[0]}' with probability {language[1]:1.4f}"
