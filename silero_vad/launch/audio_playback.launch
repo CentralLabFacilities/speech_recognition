@@ -8,9 +8,10 @@
   <arg name="depth" default="32"/>
   <arg name="sample_rate" default="16000"/>
   <arg name="sample_format" default="F32LE"/>
+  <arg name="topic" default="/silero_vad/vad"/>
 
   <node name="audio_play" pkg="audio_play" type="audio_play" output="screen">
-    <remap from="audio" to="/ros_whisper/vad" />
+    <remap from="audio" to="$(arg topic)" />
     <param name="dst" value="alsasink"/>
     <param name="device" value="$(arg device)"/>
     <param name="do_timestamp" value="False"/>
