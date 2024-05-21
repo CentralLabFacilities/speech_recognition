@@ -1,0 +1,337 @@
+#!/usr/bin/env python
+import sys
+from collections import deque
+from typing import List
+
+import rospy
+import os.path
+
+from threading import Lock
+
+import numpy as np
+import torch
+import faster_whisper
+
+import time
+
+import actionlib
+from audio_common_msgs.msg import AudioData, AudioInfo
+from std_msgs.msg import String, Float32, Bool
+from clf_speech_msgs.srv import (
+    SetFloat32,
+    SetFloat32Request,
+    SetFloat32Response,
+    Understand,
+    UnderstandRequest,
+    UnderstandResponse,
+)
+from ros_whisper.simple_recorder import SimpleRecorder
+
+import clf_speech_msgs.msg
+
+
+class SpeechRecognitionNode(SimpleRecorder):
+    _feedback = clf_speech_msgs.msg.SpeechRecognitionFeedback()
+    _result = clf_speech_msgs.msg.SpeechRecognitionResult()
+    max_length = 2.0
+    start_amp = 0.2
+    buffer_lock = Lock()
+
+    def __init__(self, model_or_path, language="en", compute_type="default"):
+        super().__init__()
+        self.init_silero()
+        self.reset()
+
+        self._as = actionlib.SimpleActionServer(
+            "listen",
+            clf_speech_msgs.msg.SpeechRecognitionAction,
+            execute_cb=self.execute_cb,
+            auto_start=False,
+        )
+
+        rospy.loginfo("initializing whisper...")
+        self.device_ = "cpu"
+        if torch.cuda.is_available():
+            rospy.loginfo("CUDA is available. Using GPU.")
+            self.device_ = "cuda"
+        self.whisper_model_ = faster_whisper.WhisperModel(
+            model_or_path, device=self.device_, compute_type=compute_type
+        )
+        rospy.logdebug("warmup...")
+        sampl = np.random.uniform(low=0.0, high=1, size=(1000,))
+        self.whisper_model_.transcribe(sampl)
+        rospy.loginfo("Whisper initialized")
+
+        self._audio_pub = rospy.Publisher("~vad", AudioData, queue_size=10)
+        self.pub = rospy.Publisher("~text", String, queue_size=1)
+        self._pub_amp = rospy.Publisher("~amp", Float32, queue_size=10)
+        self._pub_rec = rospy.Publisher("~in_rec", Bool, queue_size=1, latch=True)
+
+        self._pub_min_amp = rospy.Publisher(
+            "~min_amp", Float32, queue_size=1, latch=True
+        )
+        self._min_amp_srv = rospy.Service(
+            "~set_min_amp", SetFloat32, self.set_min_amp_cb
+        )
+        rospy.Subscriber("~input", AudioData, self.audio_cb, tcp_nodelay=True)
+
+        topic = "/rasa/understand"
+        self.service_nlu = rospy.ServiceProxy(topic, Understand)
+        self._as.start()
+
+    def init_silero(self) -> None:
+        rospy.loginfo("initializing silero...")
+        try:
+            # try loading from cache
+            import sys
+
+            cache = os.path.abspath(
+                os.path.expanduser("~/.cache/torch/hub/snakers4_silero-vad_master")
+            )
+            sys.path.append(cache)
+            from utils_vad import (
+                get_speech_timestamps,
+                save_audio,
+                read_audio,
+                VADIterator,
+                collect_chunks,
+                OnnxWrapper,
+            )
+
+            model_dir = os.path.join(cache, "files")
+            model = OnnxWrapper(os.path.join(model_dir, "silero_vad.onnx"), False)
+            utils = (
+                get_speech_timestamps,
+                save_audio,
+                read_audio,
+                VADIterator,
+                collect_chunks,
+            )
+            rospy.loginfo(logger_name="SileroVAD", msg=f"loaded model from cache")
+        except Exception as e:
+            rospy.loginfo(logger_name="SileroVAD", msg=f"loading from cache failed...")
+            model, utils = torch.hub.load(
+                repo_or_dir="snakers4/silero-vad",
+                model="silero_vad",
+                force_reload=False,
+                onnx=True,
+            )
+
+        (_, _, _, self.VADIterator, _) = utils
+        self.silero_model = model
+        self.setup_vad()
+        rospy.loginfo("silero initialized")
+
+    def setup_vad(
+        self,
+        threshold: float = 0.5,
+        min_silence_duration_ms: int = 300,
+        speech_pad_ms: int = 500,
+    ):
+        self.vad_iterator = self.VADIterator(
+            self.silero_model,
+            threshold,
+            self.samplerate,
+            min_silence_duration_ms,
+            speech_pad_ms,
+        )
+
+    def reset(self):
+        with self.buffer_lock:
+            self.last_buffer = np.array([], dtype=self.depth_type)
+            self.buffer = np.array([], dtype=self.depth_type)
+            self.enabled = False
+
+        self.last_prebuf = np.array([], dtype=self.depth_type)
+        self.prebuf = np.array([], dtype=self.depth_type)
+        self.over_min = False
+        self.recording = False
+        self.vad_iterator.reset_states()  # reset model states after each audio
+        self.finished = False
+        self._feedback = clf_speech_msgs.msg.SpeechRecognitionFeedback()
+        self._result = clf_speech_msgs.msg.SpeechRecognitionResult()
+
+    def start_recording_locking(self):
+        with self.buffer_lock:
+            self.audio = np.array([], dtype=self.depth_type)
+            self.enabled = True
+
+    def get_NLU(self, text: String) -> clf_speech_msgs.msg.NLU:
+        req = UnderstandRequest()
+        req.text = text
+        return self.service_nlu(req).nlu
+
+    def flush_buffer_loc_before(self):
+        self.last_buffer = self.buffer
+        self.audio = np.append(self.audio, self.buffer)
+        self.buffer = np.array([], dtype=self.depth_type)
+
+    def audio_cb(self, msg: AudioData) -> None:
+        if not self.enabled:
+            return
+
+        with self.buffer_lock:
+            if not self.enabled:
+                return
+
+            audio = np.frombuffer(msg.data, dtype=self.depth_type)
+            self.prebuf = np.append(self.prebuf, audio)
+
+            vals = self.samplerate / self.prebuf.shape[0]
+            # print(f"{time.time()}:{self.prebuf.shape[0]} - {vals}")
+
+            # we dont have 33ms of data
+            # len / 16000 * 1000 = 33 >>> 30.3 = (16000/len)
+            if vals > 30:
+                return
+
+            max = np.max(self.prebuf)
+            db = 20 * np.log10(np.sqrt(np.mean(self.prebuf**2)))
+            rospy.logdebug(f"amp: {max:1.2f}, db: {db:2.2f}")
+
+            amp_msg = Float32()
+            amp_msg.data = max
+            self._pub_amp.publish(amp_msg)
+
+            if not self.over_min and max > self.start_amp:
+                rospy.logdebug(f"min amp reached")
+                self.over_min = True
+
+            # Dont start recording until min amplitute is reached?
+            if not self.recording and not self.over_min:
+                speech_dict = False
+            else:
+                speech_dict = self.vad_iterator(torch.from_numpy(self.prebuf))
+
+            if speech_dict:
+                if not self.recording and "start" in speech_dict:
+                    self.start_time = time.time()
+                    rospy.loginfo(
+                        logger_name="SileroVAD",
+                        msg=f"start speech segment: {self.start_time}",
+                    )
+                    self.recording = True
+                    self._pub_rec.publish(self.recording)
+                    self.buffer = np.append(self.buffer, self.last_prebuf)
+
+                elif self.recording and "end" in speech_dict:
+                    self.end_time = time.time()
+                    rospy.loginfo(
+                        logger_name="SileroVAD",
+                        msg=f"recorded speech segment duration: {self.end_time - self.start_time}",
+                    )
+                    self.buffer = np.append(self.buffer, self.prebuf)
+                    self.flush_buffer_loc_before()
+                    self.recording = False
+                    self._pub_rec.publish(self.recording)
+
+            if self.recording:
+                self.buffer = np.append(self.buffer, self.prebuf)
+                if time.time() - self.start_time > self.max_length:
+                    rospy.logerr("TIMELIMIT REACHED")
+                    self.finished = True
+                    self.enabled = False
+                    self.flush_buffer_loc_before()
+
+            self.last_prebuf = self.prebuf
+            self.prebuf = np.array([], dtype=self.depth_type)
+
+    def transcribe_audio(self, data) -> List[String]:
+        rospy.loginfo(f"starting transcription..")
+        start = time.time()
+        segments, info = self.whisper_model_.transcribe(data, beam_size=5)
+        if info.all_language_probs is not None:
+            for language in info.all_language_probs:
+                print(
+                    f"Detected language '{language[0]}' with probability {language[1]:1.4f}"
+                )
+                if language[1] < 0.01:
+                    break
+        # print("SEGMENTS:")
+        ret = []
+        end = time.time()
+        for segment in segments:
+            print(f"  {segment}")
+            if segment.no_speech_prob < 0.7:
+                rospy.loginfo(f"speech result: '{segment.text}' , took: {end - start}")
+                self.pub.publish(segment.text)
+                ret.append(segment.text)
+            else:
+                rospy.logwarn(
+                    f"no speech {segment.no_speech_prob}, TEXT: {segment.text}"
+                )
+        return ret
+
+    def execute_cb(self, goal: clf_speech_msgs.msg.SpeechRecognitionGoal):
+        self.reset()
+        self.start_amp = 0.0
+        self.setup_vad(threshold=goal.speech_treshold)
+        self.start_recording_locking()
+
+        self.action_start_time = time.time()
+
+        while (
+            not self.finished
+            and not self._as.is_preempt_requested()
+            and not time.time() - self.action_start_time > goal.max_duration
+        ):
+            rospy.sleep(0.03)
+            # check if we have x ms audio in buffer, or if last buffer audio has text
+            # if self.buffer.shape
+            # transcribe current buffer?
+            # segments = self.transcribe_audio(self.last_buffer)
+            # self._feedback.text = self.transcribe_audio(self.buffer)[0]
+            # self._feedback.nlu = self.get_NLU(self._feedback.text)
+
+        self.enabled = False
+        with self.buffer_lock:
+            self.flush_buffer_loc_before()
+
+        if self._as.is_preempt_requested():
+            self._as.set_preempted()
+            self.reset()
+            return
+
+        vad_msg = AudioData()
+        vad_msg.data = self.audio.tobytes()
+        self._audio_pub.publish(vad_msg)
+
+        result = self.transcribe_audio(self.audio)
+        if len(result) > 1:
+            rospy.logwarn("more than one speech segment")
+
+        for seg in result:
+            self._result.nlus.append(self.get_NLU(seg))
+
+        self._as.set_succeeded(self._result)
+
+    def set_min_amp_cb(self, req: SetFloat32Request):
+        res = SetFloat32Response()
+        if req.data > 1.0 or req.data < 0.0:
+            res.success = False
+        else:
+            res.success = True
+
+        self.start_amp = req.data
+        res.message = f"set min amp to {self.start_amp }"
+
+        amp_msg = Float32()
+        amp_msg.data = self.start_amp
+
+        self._pub_min_amp.publish(amp_msg)
+
+        rospy.loginfo(logger_name="SileroVAD", msg=f"{res.message}")
+        return res
+
+
+if __name__ == "__main__":
+
+    # Start ROS node
+    rospy.init_node("ros_whisper_transcribe", log_level=rospy.DEBUG)
+    model_or_path = rospy.get_param("~model_or_path", "base.en")
+    language = rospy.get_param("~language", "en")
+    quant = rospy.get_param("~quant", "default")
+    rospy.loginfo(f"using model: {model_or_path}")
+    node = SpeechRecognitionNode(model_or_path, language, quant)
+
+    rospy.spin()

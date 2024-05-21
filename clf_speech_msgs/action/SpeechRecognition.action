@@ -1,5 +1,6 @@
 # Request
 float32 speech_treshold
+float32 max_duration
 ---
 # Result
 clf_speech_msgs/NLU[] nlus
