@@ -43,7 +43,7 @@ class WhisperNode:
         else:
             raise "unknown audio format"
 
-        self.nomalization = float(np.iinfo(self.depth_type).max / 2)
+        self.nomalization = float(np.iinfo(self.depth_type).max)
 
         bitrate = 128
         n_channel = 1

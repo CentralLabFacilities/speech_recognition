@@ -42,10 +42,7 @@ class SileroVadNode:
             rospy.logerr(logger_name="SileroVAD", msg=msg)
             raise msg
 
-        if audio_info.sample_format.lower() == "s16le":
-            self.depth_type = np.int16
-            self.nomalization = float(np.iinfo(self.depth_type).max)
-        elif audio_info.sample_format.lower() == "f32le":
+        if audio_info.sample_format.lower() == "f32le":
             self.depth_type = np.float32
             self.nomalization = None
         else:
@@ -128,12 +125,9 @@ class SileroVadNode:
             if not self.recording and "start" in speech_dict:
                 self.start_time = speech_dict["start"]
                 self.recording = True
+                # add the whole ~33ms chunk before this, silero defaults to 10ms
                 self.data = self.lastbuf
-                self.data = np.append(self.data, self.prebuf)
-                self.prebuf = []
-                self.lastbug = []
                 self._pub_rec.publish(True)
-                return
 
             elif self.recording and "end" in speech_dict:
                 self.end_time = speech_dict["end"]
@@ -142,21 +136,26 @@ class SileroVadNode:
                     msg=f"recorded speech segment: {self.end_time - self.start_time}",
                 )
                 self.recording = False
+                self._pub_rec.publish(self.recording)
                 self.data = np.append(self.data, self.prebuf)
                 vad_msg = AudioData()
                 vad_msg.data = self.data.tobytes()
                 self._pub.publish(vad_msg)
-                self.prebuf = []
                 self.vad_iterator.reset_states()  # reset model states after each audio
 
         if self.recording:
             self.data = np.append(self.data, self.prebuf)
 
-        self._pub_rec.publish(self.recording)
         self.lastbuf = self.prebuf
         self.prebuf = []
 
-    def init_silero(self) -> None:
+    def init_silero(
+        self,
+        threshold: float = 0.5,
+        samplerate: int = 16000,
+        min_silence_duration_ms: int = 500,
+        speech_pad_ms: int = 10,
+    ) -> None:
         try:
             # try loading from cache
             import sys
@@ -194,7 +193,13 @@ class SileroVadNode:
             )
 
         (_, _, _, VADIterator, _) = utils
-        self.vad_iterator = VADIterator(model)
+        self.vad_iterator = VADIterator(
+            model,
+            threshold,
+            samplerate,
+            min_silence_duration_ms,
+            speech_pad_ms,
+        )
 
     def enable_cb(self, req: SetBoolRequest):
         res = SetBoolResponse()
@@ -229,7 +234,6 @@ class SileroVadNode:
         self._pub_min_amp.publish(amp_msg)
 
         rospy.loginfo(logger_name="SileroVAD", msg=f"{res.message}")
-        self._pub_enabled.publish(self.enabled)
         return res
 
 

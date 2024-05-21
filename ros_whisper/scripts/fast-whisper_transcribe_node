@@ -56,6 +56,9 @@ class WhisperNode:
         self.whisper_model_ = faster_whisper.WhisperModel(
             model_or_path, device=self.device_, compute_type=compute_type
         )
+        rospy.logdebug("warmup...")
+        sampl = np.random.uniform(low=0.0, high=1, size=(1000,))
+        self.whisper_model_.transcribe(sampl)
         rospy.loginfo("Whisper initialized")
 
     def transcribe_audio(self, data: AudioData):

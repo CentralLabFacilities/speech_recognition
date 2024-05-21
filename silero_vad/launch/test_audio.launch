@@ -3,13 +3,13 @@
       the first number and the subdevice number as the second in a string
       like hw:1,0 -->
   <arg name="dst" default="appsink"/>
-  <arg name="device" default="hw:2,0"/>
+  <arg name="device" default=""/>
   <arg name="format" default="wave"/>
   <arg name="bitrate" default="128"/>
   <arg name="channels" default="1"/>
-  <arg name="depth" default="16"/>
+  <arg name="depth" default="32"/>
   <arg name="sample_rate" default="16000"/>
-  <arg name="sample_format" default="S16LE"/>
+  <arg name="sample_format" default="F32LE"/>
 
   <node name="audio_capture" pkg="audio_capture" type="audio_capture" output="screen">
     <param name="dst" value="$(arg dst)"/>
@@ -24,7 +24,7 @@
 
   <node name="audio_play" pkg="audio_play" type="audio_play" output="screen">
     <param name="dst" value="alsasink"/>
-    <param name="device" value="hw:0,0"/>
+    <param name="device" value=""/>
     <param name="do_timestamp" value="False"/>
     <param name="format" value="$(arg format)"/>
     <param name="channels" value="$(arg channels)"/>

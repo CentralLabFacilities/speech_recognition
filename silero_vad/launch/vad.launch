@@ -13,7 +13,7 @@
   <arg name="format" default="wave"/>
   <arg name="bitrate" default="128"/>
   <arg name="channels" default="1"/>
-  <arg name="depth" default="16"/>
+  <arg name="depth" default="32"/>
   <arg name="sample_rate" default="16000"/>
   <arg name="sample_format" default="F32LE"/>
 
