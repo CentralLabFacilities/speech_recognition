@@ -150,7 +150,7 @@ class SileroVadNode(SimpleRecorder):
         else:
             res.success = True
 
-        self.start_amp = min(max(req.data, 0), 1.0)
+        self.start_amp = min(max(req.data, 0.0), 1.0)
         res.message = f"set min amp to {self.start_amp }"
 
         amp_msg = Float32()
