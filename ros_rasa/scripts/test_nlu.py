@@ -9,6 +9,7 @@ import argparse
 import rospy
 
 from clf_speech_msgs.srv import Understand
+from clf_speech_msgs.msg import Entity
 
 
 if __name__ == "__main__":
@@ -26,34 +27,56 @@ if __name__ == "__main__":
     if args.check:
         print("checking FILE...")
 
+    success = True
+
     with args.file as file:
         for line in file:
             input = line.split("=")
             resp = understand(input[0])
             if args.check:
                 ok = True
-                error = "ERROR:"
+                error = ""
                 intent = input[1].strip()
                 if intent != resp.nlu.intent:
                     ok = False
-                    error += f"wrong intent: '{resp.nlu.intent}' should be '{intent}'"
+                    error += f"wrong intent: '{resp.nlu.intent}' should be '{intent}', "
                 entities = input[2].split(";") if len(input) > 2 else []
                 resp_entities = resp.nlu.entities
+
+
                 for ent in entities:
+                    ent = ent.strip()
                     if not ent:
                         ## Empty string
                         pass
+
+                    entity = Entity()
+                   
+                    fields = ent.split(":") 
+                    entity.key, entity.value = fields[:2]
+                    entity.role = fields[2] if len(fields) > 2 else "" 
+                    entity.group = fields[3] if len(fields) > 3 else -1
+
+                    if entity in resp_entities:
+                        resp_entities.remove(entity)
                     else:
-                        pass
+                        estring = f"{entity.key}:{entity.value}:{entity.role}:{entity.group}"
+                        ok = False
+                        error+=f"missing entity: {estring}, "
+
                 for ent in resp_entities:
                     ok = False  
-                    error += f"extra entity: {ent}"
+                    estring = f"{ent.key}:{ent.value}:{ent.role}:{ent.group}"
+                    error += f"extra entity: {estring}, "
                 if ok:
-                    print("OK")
+                    print(f"OK. input {resp.nlu.text}")
                 else:
-                    print(error)
+                    success = False
+                    print(f"ERROR. input: '{resp.nlu.text}' errors: {error}")
 
             else:
                 ents = f";".join(map(lambda e: f"{e.key}:{e.value}:{e.role}:{e.group}", resp.nlu.entities))
                 print(f"{resp.nlu.text}={resp.nlu.intent}={ents}" )
 
+    if not success:
+        sys.exit("Failed check")
