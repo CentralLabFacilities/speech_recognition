@@ -2,6 +2,9 @@
 import os
 import rospkg
 import rospy
+from actionlib import SimpleActionClient
+from pal_device_msgs.msg import DoTimedLedEffectAction, DoTimedLedEffectGoal, LedEffectParams
+from std_msgs.msg import ColorRGBA
 import threading
 from .TableModel import TableModel
 
@@ -120,6 +123,41 @@ class CLFSpeech(Plugin):
         self._timer_refresh_topics.setInterval(10)
         self._timer_refresh_topics.timeout.connect(self.refresh_topics)
 
+        # LED
+        self.led_client = SimpleActionClient("/pal_led_manager/do_effect", DoTimedLedEffectAction)
+        rospy.loginfo("waiting for led manager connection...")
+        self.led_client.wait_for_server()
+        rospy.loginfo("Connected to led manager")
+
+        self.led_listen_goal = DoTimedLedEffectGoal()
+        self.led_listen_goal.priority = 100
+        self.led_listen_goal.devices = []
+        self.led_listen_goal.params.effectType = LedEffectParams.FIXED_COLOR
+        self.led_listen_goal.params.fixed_color.color = ColorRGBA(
+            r=0., g=1., b=0., a=.8
+        )
+
+        self.unactive_goal = DoTimedLedEffectGoal()
+        self.unactive_goal.priority = 100
+        self.unactive_goal.devices = []
+        self.unactive_goal.params.effectType = LedEffectParams.BLINK
+        self.unactive_goal.params.blink.first_color = ColorRGBA(
+            r=0., g=0., b=1., a=.8
+        )
+        self.unactive_goal.params.blink.second_color = ColorRGBA(
+            r=0., g=0., b=.1, a=.8
+        )
+        self.unactive_goal.params.blink.first_color_duration  = rospy.Duration(0.5)
+        self.unactive_goal.params.blink.second_color_duration = rospy.Duration(0.5)
+        
+        self.disabled_goal = DoTimedLedEffectGoal()
+        self.disabled_goal.priority = 100
+        self.disabled_goal.devices = []
+        self.disabled_goal.params.effectType = LedEffectParams.FIXED_COLOR
+        self.disabled_goal.params.fixed_color.color = ColorRGBA(
+            r=0., g=0., b=0., a=.8
+        )
+
         self.start_monitor()
 
     def send_text(self):
@@ -143,10 +181,13 @@ class CLFSpeech(Plugin):
             with self.recording_lock:
                 if not self.vad_enabled:
                     self._widget.enabled_label.setPixmap(self._pixmaps["disabled"])
+                    self.led_client.send_goal(self.disabled_goal)
                 elif self.recording:
                     self._widget.enabled_label.setPixmap(self._pixmaps["recording"])
+                    self.led_client.send_goal(self.led_listen_goal)
                 else:
                     self._widget.enabled_label.setPixmap(self._pixmaps["stopped"])
+                    self.led_client.send_goal(self.unactive_goal)
 
     def start_monitor(self):
         topic = self._audio_ns + "/amp"
