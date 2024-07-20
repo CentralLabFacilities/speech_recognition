@@ -16,7 +16,7 @@ from std_msgs.msg import Float32, Bool
 from clf_speech_msgs.srv import SetFloat32, SetFloat32Request, SetFloat32Response
 
 from ros_whisper.simple_recorder import SimpleRecorder
-from silero_vad.cached_silero import SileroVAD
+from ros_silero_vad.silero import SileroVAD
 
 
 class SileroVadNode(SimpleRecorder):

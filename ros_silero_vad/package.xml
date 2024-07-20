@@ -1,6 +1,6 @@
 <?xml version="1.0"?>
 <package format="2">>
-  <name>silero_vad</name>
+  <name>ros_silero_vad</name>
   <version>0.0.0</version>
   <description>Voice Activity Detection with silero</description>
 

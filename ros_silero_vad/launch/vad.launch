@@ -1,7 +1,7 @@
 <launch>
   <arg name="start_amp" default="0.0"/>
 
-  <node name="silero_vad" pkg="silero_vad" type="silero_vad_node" output="screen">
+  <node name="silero_vad" pkg="ros_silero_vad" type="silero_vad_node" output="screen">
     <param name="start_amp" value="$(arg start_amp)"/>
   </node>
 
