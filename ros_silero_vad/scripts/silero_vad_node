@@ -67,6 +67,7 @@ class SileroVadNode(SimpleRecorder):
             self.recording = False
             self.vad_iterator.reset_states()
             self.enabled = True
+            self.overflow = np.array([], dtype=np.float32)
 
     def audio_cb(self, msg: AudioData) -> None:
 
@@ -81,16 +82,19 @@ class SileroVadNode(SimpleRecorder):
             audio = np.frombuffer(msg.data, dtype=self.depth_type)
             self.prebuf = np.append(self.prebuf, audio)
 
-            vals = self.samplerate / self.prebuf.shape[0]
-            # we dont have 33ms of data
-            if vals > 30:
+            vals = self.prebuf.shape[0]
+            if vals < 512:
                 return
-
+            
+            if vals > 512:
+                self.overflow = self.prebuf[512:]
+                self.prebuf = self.prebuf[:512]
+            
             amp = np.max(self.prebuf)
             amp_msg = Float32()
             amp_msg.data = amp
 
-            # print(amp_msg.data)
+            #print(f"audio amp: {amp_msg.data}")
             self._pub_amp.publish(amp_msg)
 
             # Dont start recording until min amplitute is reached?
@@ -104,14 +108,17 @@ class SileroVadNode(SimpleRecorder):
                     self.start_time = speech_dict["start"]
                     self.recording = True
                     self._pub_rec.publish(self.recording)
-                    # add the whole ~33ms chunk before this, silero defaults to 10ms
                     self.data = self.lastbuf
+                    rospy.loginfo(
+                        logger_name="SileroVAD",
+                        msg=f"started speech segment",
+                    )
 
                 elif self.recording and "end" in speech_dict:
                     self.end_time = speech_dict["end"]
                     rospy.loginfo(
                         logger_name="SileroVAD",
-                        msg=f"recorded speech segment: {self.end_time - self.start_time}",
+                        msg=f"recorded speech segment d: {self.end_time - self.start_time}",
                     )
                     self.recording = False
                     self._pub_rec.publish(self.recording)
@@ -126,7 +133,8 @@ class SileroVadNode(SimpleRecorder):
                 self.data = np.append(self.data, self.prebuf)
 
             self.lastbuf = self.prebuf
-            self.prebuf = np.array([], dtype=np.float32)
+            # we use overflow to start the buffer again
+            self.prebuf = self.overflow
 
     def enable_cb(self, req: SetBoolRequest):
         res = SetBoolResponse()
