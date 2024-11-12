@@ -3,6 +3,7 @@
     <arg name="input_topic" default="/ros_whisper/text"/>
 
     <node pkg="ros_rasa" type="rasa_nlu_node" name="rasa" output="screen">
+        <env name="CUDA_VISIBLE_DEVICES" value="''"/> 
         <remap from="~input" to="$(arg input_topic)" />
         <param name="model" value="$(arg model)"/>
     </node>
