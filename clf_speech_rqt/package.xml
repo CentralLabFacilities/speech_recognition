@@ -12,6 +12,8 @@
   <maintainer email="lruegeme@techfak.uni-bielefeld.de">Leroy Rügemer</maintainer>
 
   <buildtool_depend>catkin</buildtool_depend>
+  <depend>clf_speech_msgs</depend>
+  <depend>rqt_gui_py</depend>
   
   <export>
     <rqt_gui plugin="${prefix}/plugin.xml"/>

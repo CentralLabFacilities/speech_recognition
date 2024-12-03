@@ -2,7 +2,10 @@ cmake_minimum_required(VERSION 3.0.2)
 project(clf_speech_rqt)
 
 # Load catkin and all dependencies required for this package
-find_package(catkin REQUIRED)
+find_package(catkin REQUIRED COMPONENTS
+  clf_speech_msgs
+  rqt_gui_py
+)
 
 catkin_python_setup()
 
