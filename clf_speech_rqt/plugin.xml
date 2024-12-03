@@ -10,7 +10,7 @@
         <icon type="theme">folder</icon>
         <statustip>Plugins from CLF.</statustip>
       </group>
-      <label>Controller Manager</label>
+      <label>Speech</label>
       <icon type="file">resource/speech.png</icon>
       <statustip>Manage speech recognition</statustip>
     </qtgui>
