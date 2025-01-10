@@ -13,6 +13,7 @@ import std_msgs.msg
 
 from ros_rasa import rasa_nlu
 
+
 class RASANode:
     def __init__(self, model):
         rospy.loginfo(logger_name="RASANode", msg="initializing:")
@@ -24,6 +25,11 @@ class RASANode:
         self.nlu_srv = rospy.Service("~understand", Understand, self.understand_cb)
         self.result_pub = rospy.Publisher("~nlu", NLU, queue_size=1)
         self.sub = rospy.Subscriber("~input", std_msgs.msg.String, self.new_message)
+
+        self.debug_pub = rospy.Publisher("~/debug/nlu", NLU, queue_size=1)
+        self.sub_debug = rospy.Subscriber(
+            "~/debug/input", std_msgs.msg.String, self.new_debug
+        )
 
     def parse(self, text: str) -> NLU:
         with self.lock:
@@ -55,6 +61,11 @@ class RASANode:
         nlu = self.parse(data.data)
         self.result_pub.publish(nlu)
         rospy.loginfo(logger_name="RASANode", msg=f"{nlu}")
+
+    def new_debug(self, data):
+        nlu = self.parse(data.data)
+        self.debug_pub.publish(nlu)
+        rospy.logdebug(logger_name="RASANode", msg=f"{nlu}")
 
 
 if __name__ == "__main__":
