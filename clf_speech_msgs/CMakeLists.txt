@@ -15,8 +15,9 @@ add_action_files(
 
 add_message_files(
 	FILES
-	NLU.msg
-	Entity.msg
+		ASR.msg
+		NLU.msg
+		Entity.msg
 )
 
 add_service_files(

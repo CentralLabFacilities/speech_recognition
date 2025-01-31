@@ -1,0 +1,16 @@
+<package format="2">
+	<name>clf_audio_util</name>
+	<version>0.0.1</version>
+	<description>
+
+		utils for speech recognition
+
+	</description>
+	<maintainer email="lruegeme@techfak.uni-bielefeld.de">Leroy Ruegemer</maintainer>
+	<author email="lruegeme@techfak.uni-bielefeld.de">Leroy Ruegemer</author>
+	<license>LGPLv3</license>
+
+	<buildtool_depend>catkin</buildtool_depend>
+	<depend>rospy</depend>
+	
+</package>
