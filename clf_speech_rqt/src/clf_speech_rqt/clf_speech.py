@@ -33,7 +33,7 @@ from qt_gui.plugin import Plugin
 
 from std_msgs.msg import Float32, Bool, String
 from clf_speech_msgs.srv import SetFloat32, SetFloat32Request, SetFloat32Response
-from clf_speech_msgs.msg import Entity, NLU
+from clf_speech_msgs.msg import Entity, NLU, ASR
 
 
 class CLFSpeech(Plugin):
@@ -56,7 +56,8 @@ class CLFSpeech(Plugin):
 
         # Initialize members
         self._audio_ns = "/silero_vad"  # Namespace of the audio recording
-        self._asr_topic = "/ros_whisper/text"
+        self._asr_text_topic = "/ros_whisper/text"
+        self._asr_topic = "/ros_whisper/asr"
         self._nlu_topic = "/rasa/nlu"
 
         try:
@@ -165,9 +166,14 @@ class CLFSpeech(Plugin):
         rospy.loginfo(logger_name="CLFSpeech", msg=f"subscribe to {topic}")
         self.rec_subscriber = rospy.Subscriber(topic, NLU, self.callback_nlu)
 
+        topic = self._asr_text_topic
+        rospy.loginfo(logger_name="CLFSpeech", msg=f"subscribe to {topic}")
+        self.asr_text_subscriber = rospy.Subscriber(
+            topic, String, self.callback_asr_text
+        )
         topic = self._asr_topic
         rospy.loginfo(logger_name="CLFSpeech", msg=f"subscribe to {topic}")
-        self.asr_subscriber = rospy.Subscriber(topic, String, self.callback_asr)
+        self.asr_subscriber = rospy.Subscriber(topic, ASR, self.callback_asr)
         self.publisher = rospy.Publisher(topic, String, queue_size=1)
 
         topic = self._audio_ns + "/set_min_amp"
@@ -175,10 +181,18 @@ class CLFSpeech(Plugin):
 
         self._timer_refresh_topics.start()
 
-    def callback_asr(self, message):
+    def callback_asr_text(self, message):
         self.last_asr = message.data
-        rospy.loginfo(logger_name="CLFSpeech", msg=f"asr: {self.last_asr}")
-        item = QStandardItem(self.last_asr)
+        rospy.loginfo(logger_name="CLFSpeech", msg=f"asr: {message.data}")
+        item = QStandardItem(message.data)
+        self.text_list_model.insertRow(0, item)
+        self.text_list_model.setRowCount(20)
+        # self.text_list_model.appendRow(item)
+
+    def callback_asr(self, message: ASR):
+        self.last_asr = message.text
+        rospy.loginfo(logger_name="CLFSpeech", msg=f"asr: {message.text}")
+        item = QStandardItem(f"({message.lang}) {message.text}")
         self.text_list_model.insertRow(0, item)
         self.text_list_model.setRowCount(20)
         # self.text_list_model.appendRow(item)
