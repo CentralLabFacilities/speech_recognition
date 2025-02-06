@@ -171,10 +171,11 @@ class CLFSpeech(Plugin):
         self.asr_text_subscriber = rospy.Subscriber(
             topic, String, self.callback_asr_text
         )
+        self.publisher = rospy.Publisher(topic, String, queue_size=1)
+
         topic = self._asr_topic
         rospy.loginfo(logger_name="CLFSpeech", msg=f"subscribe to {topic}")
         self.asr_subscriber = rospy.Subscriber(topic, ASR, self.callback_asr)
-        self.publisher = rospy.Publisher(topic, String, queue_size=1)
 
         topic = self._audio_ns + "/set_min_amp"
         self.service_set_amp = rospy.ServiceProxy(topic, SetFloat32)
