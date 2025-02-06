@@ -14,6 +14,7 @@ install(PROGRAMS
   scripts/live_whisper_node
   scripts/whisper_transcribe_node
   scripts/fast-whisper_transcribe_node
+  scripts/fast-whisper_transcribe_node_asr
   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
 

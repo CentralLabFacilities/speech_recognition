@@ -1,0 +1,11 @@
+<launch>
+    <arg name="model" default="$(find ros_rasa)/models/MODEL_NAME.tar.gz"/>
+    <arg name="input_topic" default="/ros_whisper/asr"/>
+
+    <node pkg="ros_rasa" type="rasa_nlu_node_asr" name="rasa" output="screen">
+        <env name="CUDA_VISIBLE_DEVICES" value="''"/> 
+        <remap from="~input" to="$(arg input_topic)" />
+        <param name="model" value="$(arg model)"/>
+    </node>
+
+</launch> 

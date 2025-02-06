@@ -1,0 +1,15 @@
+<launch>
+  <!-- Model to use can be path or one of the types e.g. '/path/to/model_folder' or 'distil-medium.en'-->
+  <arg name="whisper_model" default="large-v3"/>
+  <!-- https://opennmt.net/CTranslate2/quantization.html -->
+  <arg name="quant" default="default"/> 
+  <arg name="language" default="en"/>
+
+  <node name="ros_whisper" pkg="ros_whisper" type="fast-whisper_transcribe_node_asr" output="screen">
+    <remap from="~input" to="/silero_vad/vad"/>
+    <param name="model_or_path" value="$(arg whisper_model)"/>
+    <param name="quant" value="$(arg quant)"/>
+    <param name="language" value="$(arg language)"/>
+  </node>
+
+</launch>

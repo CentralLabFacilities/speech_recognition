@@ -1,0 +1,217 @@
+#!/usr/bin/env python
+import sys
+from collections import deque
+
+import rospy
+
+from threading import Lock
+
+import numpy as np
+import torch
+import faster_whisper
+
+import time
+
+from audio_common_msgs.msg import AudioData, AudioInfo
+from clf_speech_msgs.msg import ASR
+
+languages = {
+    "en": 0,  # english
+    "zh": 1,  # chinese
+    "de": 2,  # german
+    "es": 3,  # spanish
+    "ru": 4,  # russian
+    "ko": 5,  # korean
+    "fr": 6,  # french
+    "ja": 6,  # japanese
+    "pt": 7,  # portuguese
+    "tr": 8,  # turkish
+    "pl": 9,  # polish
+    "ca": 10,  # catalan
+    "nl": 11,  # dutch
+    "ar": 12,  # arabic
+    "sv": 13,  # swedish
+    "it": 14,  # italian
+    "id": 15,  # indonesian
+    "hi": 16,  # hindi
+    "fi": 17,  # finnish
+    "vi": 18,  # vietnamese
+    "he": 19,  # hebrew
+    "uk": 20,  # ukrainian
+    "el": 21,  # greek
+    "ms": 22,  # malay
+    "cs": 23,  # czech
+    "ro": 24,  # romanian
+    "da": 25,  # danish
+    "hu": 26,  # hungarian
+    "ta": 27,  # tamil
+    "no": 28,  # norwegian
+    "th": 29,  # thai
+    "ur": 30,  # urdu
+    "hr": 31,  # croatian
+    "bg": 32,  # bulgarian
+    "lt": 33,  # lithuanian
+    "la": 34,  # latin
+    "mi": 35,  # maori
+    "ml": 36,  # malayalam
+    "cy": 37,  # welsh
+    "sk": 38,  # slovak
+    "te": 39,  # telugu
+    "fa": 40,  # persian
+    "lv": 41,  # latvian
+    "bn": 42,  # bengali
+    "sr": 43,  # serbian
+    "az": 44,  # azerbaijani
+    "sl": 45,  # slovenian
+    "kn": 46,  # kannada
+    "et": 47,  # estonian
+    "mk": 48,  # macedonian
+    "br": 49,  # breton
+    "eu": 50,  # basque
+    "is": 51,  # icelandic
+    "hy": 52,  # armenian
+    "ne": 53,  # nepali
+    "mn": 54,  # mongolian
+    "bs": 55,  # bosnian
+    "kk": 56,  # kazakh
+    "sq": 57,  # albanian
+    "sw": 58,  # swahili
+    "gl": 59,  # galician
+    "mr": 60,  # marathi
+    "pa": 61,  # punjabi
+    "si": 62,  # sinhala
+    "km": 63,  # khmer
+    "sn": 64,  # shona
+    "yo": 65,  # yoruba
+    "so": 66,  # somali
+    "af": 67,  # afrikaans
+    "oc": 68,  # occitan
+    "ka": 69,  # georgian
+    "be": 70,  # belarusian
+    "tg": 71,  # tajik
+    "sd": 72,  # sindhi
+    "gu": 73,  # gujarati
+    "am": 74,  # amharic
+    "yi": 75,  # yiddish
+    "lo": 76,  # lao
+    "uz": 77,  # uzbek
+    "fo": 78,  # faroese
+    "ht": 79,  # haitian creole
+    "ps": 80,  # pashto
+    "tk": 81,  # turkmen
+    "nn": 82,  # nynorsk
+    "mt": 83,  # maltese
+    "sa": 84,  # sanskrit
+    "lb": 85,  # luxembourgish
+    "my": 86,  # myanmar
+    "bo": 87,  # tibetan
+    "tl": 88,  # tagalog
+    "mg": 89,  # malagasy
+    "as": 90,  # assamese
+    "tt": 91,  # tatar
+    "haw": 92,  # hawaiian
+    "ln": 93,  # lingala
+    "ha": 94,  # hausa
+    "ba": 95,  # bashkir
+    "jw": 96,  # javanese
+    "su": 97,  # sundanese
+    "yue": 98,  # cantonese
+}
+
+
+class WhisperNode:
+    def __init__(self, model_or_path, compute_type="default"):
+
+        self.pub = rospy.Publisher("~asr", ASR, queue_size=1)
+        self.max_length = 8.0
+
+        rospy.loginfo(logger_name="Whisper", msg=f"waiting for audio_info...")
+        audio_info: AudioInfo = rospy.wait_for_message(
+            "audio_info", AudioInfo, timeout=5
+        )  # type: ignore
+
+        if not audio_info.sample_rate == 16000:
+            msg = f"Sample rate needs to be 16000"
+            rospy.logerr(logger_name="Whisper", msg=msg)
+            raise Exception(msg)
+
+        if not audio_info.channels == 1:
+            msg = f"Cant use non mono audio"
+            rospy.logerr(logger_name="Whisper", msg=msg)
+            raise Exception(msg)
+
+        if audio_info.sample_format.lower() == "s16le":
+            self.depth_type = np.int16
+            self.nomalization = float(np.iinfo(self.depth_type).max)
+        elif audio_info.sample_format.lower() == "f32le":
+            self.depth_type = np.float32
+            self.nomalization = None
+        else:
+            msg = f"unhandled audio format"
+            rospy.logerr(logger_name="Whisper", msg=msg)
+            raise Exception(msg)
+
+        rospy.loginfo("initializing whisper...")
+        self.device_ = "cpu"
+        if torch.cuda.is_available():
+            rospy.loginfo("CUDA is available. Using GPU.")
+            self.device_ = "cuda"
+        self.whisper_model_ = faster_whisper.WhisperModel(
+            model_or_path, device=self.device_, compute_type=compute_type
+        )
+        rospy.logdebug("warmup...")
+        sampl = np.random.uniform(low=0.0, high=1, size=(1000,))
+        self.whisper_model_.transcribe(sampl)
+        rospy.loginfo("Whisper initialized")
+
+    def transcribe_audio(self, data: AudioData):
+        rospy.loginfo(f"starting transcription..")
+        start = time.time()
+        audio_data = np.frombuffer(data.data, dtype=self.depth_type)
+        if self.nomalization is None:
+            pass
+        else:
+            audio_data = np.divide(audio_data, self.nomalization)
+        # audio = whisper.pad_or_trim(audio)
+        # mel = whisper.log_mel_spectrogram(audio, self.n_mels, device=self.device_).to(
+        #    self.device_
+        # )
+        # result = whisper.decode(self.whisper_model_, mel, self.whisper_options_)
+        segments, info = self.whisper_model_.transcribe(audio_data, beam_size=5)
+        asr = ASR()
+        if info.all_language_probs is not None:
+            asr.lang = languages[info.all_language_probs[0][0]]
+            asr.lang_conf = info.all_language_probs[0][1]
+            for language in info.all_language_probs:
+                print(
+                    f"Detected language '{language[0]}' with probability {language[1]:1.4f}"
+                )
+                if language[1] < 0.1:
+                    break
+        # print("SEGMENTS:")
+        end = time.time()
+        for segment in segments:
+            print(f"  {segment}")
+            if segment.no_speech_prob < 0.7:
+                rospy.loginfo(f"speech result: '{segment.text}' , took: {end - start}")
+                asr.text = segment.text
+                asr.conf = 1 - segment.no_speech_prob
+                self.pub.publish(asr)
+            else:
+                rospy.logwarn(
+                    f"no speech {segment.no_speech_prob}, TEXT: {segment.text}"
+                )
+
+
+if __name__ == "__main__":
+
+    # Start ROS node
+    rospy.init_node("ros_whisper_transcribe")
+    model_or_path = rospy.get_param("~model_or_path", "base.en")
+    quant = rospy.get_param("~quant", "default")
+    rospy.loginfo(f"using model: {model_or_path}")
+    node = WhisperNode(model_or_path, quant)  # type: ignore
+
+    rospy.Subscriber("~input", AudioData, node.transcribe_audio)
+
+    rospy.spin()

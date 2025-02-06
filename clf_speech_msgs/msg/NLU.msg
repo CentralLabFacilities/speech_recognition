@@ -1,3 +1,4 @@
+uint8 lang
 string text
 string intent
 float32 conf
