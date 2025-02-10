@@ -1,0 +1,8 @@
+<launch>
+    <arg name="model" default="$(find ros_nllb)/models/nllb-200-distilled-600M"/>
+
+    <node pkg="ros_nllb" type="ct2_node" name="ros_nllb" output="screen">
+        <param name="model" value="$(arg model)"/>
+    </node>
+
+</launch> 

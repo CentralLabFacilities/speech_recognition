@@ -1,8 +1,8 @@
 <launch>
     <node pkg="ros_piper_tts" type="piper_node_palforward" name="piper_tts" output="screen">
-        <param name="model_dir" value="$(find piper_tts)/models"/>
+        <param name="model_dir" value="$(find ros_piper_tts)/models"/>
         <param name="default_model" value="de_DE-karlsson-low"/>
-        <rosparam command="load" file="$(find piper_tts)/config/models.yaml"/>
+        <rosparam command="load" file="$(find ros_piper_tts)/config/models.yaml"/>
     </node>
 
 </launch> 
