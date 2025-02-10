@@ -3,9 +3,12 @@
 Packages for speech recognition in ros1 (Tested on 22.04/obese)
 
 - [clf_speech_msgs](clf_speech_msgs/) message definition
-- [ros_whisper](ros_whisper/) using openai-whisper for speech recognition in ros 
+- [clf_speech_rqt](clf_speech_rqt/) rqt plugin
+- [ros_nllb](ros_nllb/) translation with nllb
+- [ros_piper_tts](ros_piper_tts/) tts with piper
 - [ros_rasa](ros_rasa/) using RASA for natural language understanding in ros 
-- [silero_vad](silero_vad/) using silero VAD for detecting voice activity on a [https://github.com/ros-drivers/audio_common/blob/master/audio_common_msgs/msg/AudioData.msg](AudioData) topic
+- [ros_silero_vad](ros_silero_vad/) using silero VAD for detecting voice activity on a [AudioData](https://github.com/ros-drivers/audio_common/blob/master/audio_common_msgs/msg/AudioData.msg) topic
+- [ros_whisper](ros_whisper/) using openai-whisper for speech recognition in ros 
 
 ## Install
 
