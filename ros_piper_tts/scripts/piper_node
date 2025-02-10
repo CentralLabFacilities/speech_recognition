@@ -7,7 +7,7 @@ import sounddevice as sd
 from dynamic_reconfigure.server import Server as DynServer
 
 from clf_speech_msgs.msg import ASR
-from clf_speech_msgs.msg import TtsAction, TtsGoal, TtsResult, TtsFeedback
+from clf_speech_msgs.msg import TTSAction, TTSGoal, TTSResult, TTSFeedback
 from clf_speech_msgs.srv import Translate, TranslateRequest, TranslateResponse
 
 from ros_piper_tts import piper_tts
@@ -15,8 +15,8 @@ from ros_piper_tts import piper_tts
 
 class PiperNode(object):
     # create messages that are used to publish feedback/result
-    _feedback = TtsFeedback()
-    _result = TtsResult()
+    _feedback = TTSFeedback()
+    _result = TTSResult()
 
     def __init__(self, model_dir, default_model, translate):
         self.model_dir = model_dir
@@ -34,7 +34,7 @@ class PiperNode(object):
 
         self._as = actionlib.SimpleActionServer(
             "/piper_tts",
-            TtsAction,
+            TTSAction,
             execute_cb=self.execute_cb,
             auto_start=False,
         )
@@ -42,8 +42,8 @@ class PiperNode(object):
         self.translate = translate
         if translate:
             self._translate_client = rospy.ServiceProxy("/translate", Translate)
-            self._translate_client.wait_for_service()
             rospy.loginfo("waiting for /translate connection...")
+            self._translate_client.wait_for_service()
 
         self._as.start()
         rospy.loginfo("piper_tts started")
@@ -92,7 +92,7 @@ class PiperNode(object):
 
     #     self._as.set_succeeded()
 
-    def execute_cb(self, goal: TtsGoal):
+    def execute_cb(self, goal: TTSGoal):
         r = rospy.Rate(10)
         success = True
 
@@ -122,7 +122,7 @@ class PiperNode(object):
             self._as.set_aborted()
             return
 
-        audio_stream = voice.synthesize(goal.speakerName)
+        audio_stream = voice.synthesize(text_to_speek)
 
         for data in audio_stream:
             npa = np.frombuffer(data, dtype=np.int16)

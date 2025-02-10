@@ -18,7 +18,7 @@ lang_to_code = {ASR.DE: "deu_Latn", ASR.ES: "spa_Latn", ASR.ZH: "zho_Hans"}
 
 
 class NLLBNode:
-    def __init__(self, model):
+    def __init__(self, ct2_model, model):
 
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
         print(f"using {self.device}")
@@ -28,7 +28,7 @@ class NLLBNode:
             model,
             src_lang="eng_Latn",
         )
-        self.model = ctranslate2.Translator(model, device=self.device)
+        self.model = ctranslate2.Translator(ct2_model, device=self.device)
 
         self.srv = rospy.Service("~translate", Translate, self.cb)
 
@@ -67,10 +67,11 @@ if __name__ == "__main__":
 
     try:
         _model = os.path.expanduser(rospy.get_param("~model"))
+        _ct_model = os.path.expanduser(rospy.get_param("~ct2_model"))
     except KeyError as e:
         rospy.logerr(logger_name="NLLBNode", msg="Parameter %s not found" % e)
         sys.exit(1)
 
-    node = NLLBNode(_model)
+    node = NLLBNode(_ct_model, _model)
     rospy.loginfo(logger_name="NLLBNode", msg="\nNLLB running")
     rospy.spin()

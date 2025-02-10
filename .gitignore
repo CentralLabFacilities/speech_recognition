@@ -10,5 +10,5 @@ log/
 .colcon_root
 
 # cached models
-ros_nllb/models/nnlb-200-distilled-600M
+ros_nllb/models/
 ros_nllb/scripts/test

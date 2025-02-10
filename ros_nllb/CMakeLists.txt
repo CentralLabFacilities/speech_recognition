@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.5)
-project(ros_nnlb)
+project(ros_nllb)
 
 find_package(catkin REQUIRED COMPONENTS
   rospy

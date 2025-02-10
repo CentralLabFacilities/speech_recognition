@@ -1,6 +1,6 @@
 <?xml version="1.0"?>
 <package format="2">>
-  <name>ros_nnlb</name>
+  <name>ros_nllb</name>
   <version>0.0.0</version>
   <description>Translation with Facebook No Language Left Behind</description>
 
