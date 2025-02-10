@@ -1,6 +1,6 @@
 <?xml version="1.0"?>
 <package format="2">
-  <name>piper_tts</name>
+  <name>ros_piper_tts</name>
   <version>0.0.0</version>
   <description>ROS TTS with Piper</description>
 

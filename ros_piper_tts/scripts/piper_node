@@ -10,7 +10,7 @@ from clf_speech_msgs.msg import ASR
 from clf_speech_msgs.msg import TtsAction, TtsGoal, TtsResult, TtsFeedback
 from clf_speech_msgs.srv import Translate, TranslateRequest, TranslateResponse
 
-from piper_tts import piper_tts
+from ros_piper_tts import piper_tts
 
 
 class PiperNode(object):

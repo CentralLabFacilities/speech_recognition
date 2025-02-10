@@ -10,7 +10,7 @@ from clf_speech_msgs.msg import ASR
 from clf_speech_msgs.msg import TtsAction, TtsGoal, TtsResult, TtsFeedback
 from clf_speech_msgs.srv import Translate, TranslateRequest, TranslateResponse
 import pal_interaction_msgs.msg as palmsg
-from piper_tts import piper_tts
+from ros_piper_tts import piper_tts
 
 
 class PiperNode(object):
@@ -38,7 +38,7 @@ class PiperNode(object):
             execute_cb=self.execute_cb,
             auto_start=False,
         )
-        
+
         self._tts_client = actionlib.SimpleActionClient("/tts", palmsg.TtsAction)
         rospy.loginfo("waiting for /tts connection...")
         self._tts_client.wait_for_server()
