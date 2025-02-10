@@ -11,7 +11,6 @@ catkin_package()
 
 install(PROGRAMS
   scripts/testing_node
-  scripts/live_whisper_node
   scripts/whisper_transcribe_node
   scripts/fast-whisper_transcribe_node
   scripts/fast-whisper_transcribe_node_asr
