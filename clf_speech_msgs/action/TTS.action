@@ -1,0 +1,13 @@
+string text
+# Language of the input
+uint8 text_lang
+
+# Language that should be spoken
+uint8 speaker_lang
+# Voice name for the tts engine.
+string speakerName
+---
+# the actual text that was spoken
+string text
+---
+## feedback

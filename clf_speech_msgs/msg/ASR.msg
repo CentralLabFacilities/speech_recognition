@@ -5,6 +5,7 @@ string text
 
 # Whisper Languages
 uint8 EN = 0 # english
+
 uint8 ZH = 1 # chinese
 uint8 DE = 2 # german
 uint8 ES = 3 # spanish

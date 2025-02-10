@@ -11,6 +11,7 @@ find_package(catkin REQUIRED
 add_action_files(
 	FILES
 	SpeechRecognition.action
+	TTS.action
 )
 
 add_message_files(
@@ -23,6 +24,7 @@ add_message_files(
 add_service_files(
 	FILES
 	SetFloat32.srv
+	Translate.srv
 	Understand.srv
 )
 

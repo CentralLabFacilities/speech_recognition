@@ -1,0 +1,7 @@
+# Translate English Text
+
+string text
+uint8 target_lang
+---
+string text
+
