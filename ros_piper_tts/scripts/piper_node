@@ -1,0 +1,161 @@
+#!/usr/bin/env python
+import rospy
+import actionlib
+import numpy as np
+import sounddevice as sd
+
+from dynamic_reconfigure.server import Server as DynServer
+
+from clf_speech_msgs.msg import ASR
+from clf_speech_msgs.msg import TtsAction, TtsGoal, TtsResult, TtsFeedback
+from clf_speech_msgs.srv import Translate, TranslateRequest, TranslateResponse
+
+from piper_tts import piper_tts
+
+
+class PiperNode(object):
+    # create messages that are used to publish feedback/result
+    _feedback = TtsFeedback()
+    _result = TtsResult()
+
+    def __init__(self, model_dir, default_model, translate):
+        self.model_dir = model_dir
+
+        self.voices = {}
+        model, config = piper_tts.get_model(model_dir, default_model)
+        self.voices["default"] = piper_tts.PiperTTS(model, config)
+
+        self.configure()
+
+        # This is just to warmup the default network
+        data = self.voices["default"].synthesize("Good Morning")
+        for d in data:
+            pass
+
+        self._as = actionlib.SimpleActionServer(
+            "/piper_tts",
+            TtsAction,
+            execute_cb=self.execute_cb,
+            auto_start=False,
+        )
+
+        self.translate = translate
+        if translate:
+            self._translate_client = rospy.ServiceProxy("/translate", Translate)
+            self._translate_client.wait_for_service()
+            rospy.loginfo("waiting for /translate connection...")
+
+        self._as.start()
+        rospy.loginfo("piper_tts started")
+
+    def configure(self):
+        meta_param = rospy.get_param("/piper_tts/models")
+        print(meta_param)
+
+        param_names = rospy.get_param_names()
+        self.model_names = []
+        for param_name in param_names:
+            # If the parameter is like '/piper_tts/models/NAME/voice'
+            if "/piper_tts/models" in param_name and "/voice" in param_name:
+                motion_name = param_name.replace("/piper_tts/models/", "")
+                motion_name = motion_name.replace("/voice", "")
+                self.model_names.append(motion_name)
+
+        for model in self.model_names:
+            param = rospy.get_param(f"/piper_tts/models/{model}")
+            voice = param["voice"]
+
+            rospy.loginfo(f"Loading /piper_tts/models/{model} with {voice}")
+            try:
+                onnx, config = piper_tts.get_model(self.model_dir, voice)
+                self.voices[model] = piper_tts.PiperTTS(onnx, config)
+            except rospy.ROSException as e:
+                rospy.logwarn(f"could not load '{model}', ignored")
+
+    def get_voice(self, langid):
+        if langid == "":
+            langid = "default"
+
+        if langid in self.voices.keys():
+            return self.voices[langid]
+        else:
+            rospy.logerr(f"failed to find voide {langid}")
+            return None
+
+    # def forward(self, goal):
+    #     goal.rawtext.lang_id = "en_GB"
+    #     self._tts_client.send_goal(goal)
+    #     while self._tts_client.wait_for_result(rospy.Duration(0.01)) != True:
+    #         if self._as.is_preempt_requested():
+    #             self._tts_client.cancel_goal()
+    #             return self._as.set_preempted()
+
+    #     self._as.set_succeeded()
+
+    def execute_cb(self, goal: TtsGoal):
+        r = rospy.Rate(10)
+        success = True
+
+        # if goal.text_lang == ASR.EN and goal.speaker_lang == ASR.EN:
+        #    return self.forward(goal)
+
+        text_to_speek = goal.text
+        if goal.text_lang != goal.speaker_lang:
+
+            if not self.translate:
+                rospy.logerr("translation disabled")
+                self._as.set_aborted()
+                return
+
+            translate = TranslateRequest()
+            translate.text = goal.text
+            translate.target_lang = goal.speaker_lang
+            res = self._translate_client.call(translate)
+            text_to_speek = res.text
+
+        self._result.text = text_to_speek
+        rospy.loginfo(f"say({goal.speakerName}): {text_to_speek}")
+
+        voice = self.get_voice(goal.speakerName)
+        if voice is None:
+            rospy.logerr(f"speaker {goal.speakerName} not found")
+            self._as.set_aborted()
+            return
+
+        audio_stream = voice.synthesize(goal.speakerName)
+
+        for data in audio_stream:
+            npa = np.frombuffer(data, dtype=np.int16)
+            # RawOutputStream does not need np
+            sd.play(npa, voice.samplerate, blocking=False)
+
+            while sd._last_callback.event.is_set() == False:
+                if self._as.is_preempt_requested():
+                    sd.stop()
+                    self._as.set_preempted()
+                    return
+                rospy.sleep(0.1)
+
+            if self._as.is_preempt_requested():
+                sd.stop()
+                self._as.set_preempted()
+                success = False
+                return
+
+        rospy.loginfo(f"playback done {success}")
+
+        if success:
+            self._as.set_succeeded(self._result)
+        else:
+            self._as.set_aborted()
+
+
+if __name__ == "__main__":
+
+    # Start ROS node
+    rospy.init_node("piper_ttsl")
+    translate = rospy.get_param("~translate", False)
+    model_dir = rospy.get_param("~model_dir", "/home/robocup-adm/tmp/tts/karlsson")
+    default_model = rospy.get_param("~default_model", "de_DE-karlsson-low")
+    PiperNode(model_dir, default_model, translate)
+    rospy.spin()

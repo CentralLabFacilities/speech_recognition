@@ -1,0 +1,15 @@
+models:
+  de_DE: 
+    voice: "de_DE-karlsson-low"
+  en_GB: 
+    voice: "en_GB-alan-medium"
+  thorsten:
+    voice: "de_DE-thorsten-low"
+  alan:
+    voice: "en_GB-alan-medium"
+  kerstin:
+    voice: de_DE-kerstin-low
+  ramona:
+    voice: de_DE-ramona-low
+  ryan:
+    voice: en_US-ryan-low
