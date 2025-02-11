@@ -1,0 +1,9 @@
+models:
+  de:
+    voice: "de_DE-thorsten-low"
+  en: 
+    voice: "en_GB-alan-medium"
+  es:
+    voice: "es_MX-ald-medium"
+  zh:
+    voice: zh_CN-huayan-medium

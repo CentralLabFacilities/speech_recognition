@@ -59,13 +59,15 @@ class RASANode:
         rospy.loginfo(logger_name="RASANode", msg=f"Got request for: {res.nlu}")
         return res
 
-    def new_message(self, data):
-        nlu = self.parse(data.data)
+    def new_message(self, data: ASR):
+        nlu = self.parse(data)
         self.result_pub.publish(nlu)
         rospy.loginfo(logger_name="RASANode", msg=f"{nlu}")
 
-    def new_debug(self, data):
-        nlu = self.parse(data.data)
+    def new_debug(self, data: std_msgs.msg.String):
+        asr = ASR()
+        asr.text = data.data
+        nlu = self.parse(asr)
         self.debug_pub.publish(nlu)
         rospy.logdebug(logger_name="RASANode", msg=f"{nlu}")
 
