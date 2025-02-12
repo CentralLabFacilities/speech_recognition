@@ -13,8 +13,7 @@ from clf_speech_msgs.srv import Translate, TranslateRequest, TranslateResponse
 
 import ctranslate2
 from transformers import AutoModelForSeq2SeqLM, AutoTokenizer
-
-lang_to_code = {ASR.DE: "deu_Latn", ASR.ES: "spa_Latn", ASR.ZH: "zho_Hans"}
+import clf_audio_util.utils as util
 
 
 class NLLBNode:
@@ -38,7 +37,7 @@ class NLLBNode:
 
     def translate(self, text, lang):
         inputs = self.tokenizer.convert_ids_to_tokens(self.tokenizer.encode(text))
-        target_prefix = [lang_to_code.get(lang, "deu_Latn")]
+        target_prefix = [util.lang_to_flores200.get(lang, "eng_Latn")]
         results = self.model.translate_batch([inputs], target_prefix=[target_prefix])
         target = results[0].hypotheses[0][1:]
         out = self.tokenizer.decode(self.tokenizer.convert_tokens_to_ids(target))
@@ -47,7 +46,8 @@ class NLLBNode:
 
     def cb(self, req: TranslateRequest) -> TranslateResponse:
         res = TranslateResponse()
-        rospy.loginfo(logger_name="NLLBNode", msg=f"Got request: {req}")
+        lang = {util.lang_to_flores200.get(req.target_lang, "unknown")}
+        rospy.loginfo(logger_name="NLLBNode", msg=f"Got request [{lang}]: {req.text}")
         start = time.time()
         text = self.translate(req.text, req.target_lang)
         end = time.time()

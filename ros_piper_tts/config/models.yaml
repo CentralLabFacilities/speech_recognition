@@ -1,8 +1,13 @@
 models:
-  de_DE: 
+  de:
     voice: "de_DE-karlsson-low"
-  en_GB: 
+  en: 
     voice: "en_GB-alan-medium"
+  es:
+    voice: "es_MX-ald-medium"
+  zh:
+    voice: zh_CN-huayan-medium
+  
   thorsten:
     voice: "de_DE-thorsten-low"
   alan:

@@ -11,6 +11,7 @@ from clf_speech_msgs.msg import TTSAction, TTSGoal, TTSResult, TTSFeedback
 from clf_speech_msgs.srv import Translate, TranslateRequest, TranslateResponse
 
 from ros_piper_tts import piper_tts
+import clf_audio_util.utils as util
 
 
 class PiperNode(object):
@@ -18,14 +19,19 @@ class PiperNode(object):
     _feedback = TTSFeedback()
     _result = TTSResult()
 
-    def __init__(self, model_dir, default_model, translate):
+    def __init__(self, model_dir, default_speaker, translate):
         self.model_dir = model_dir
 
         self.voices = {}
-        model, config = piper_tts.get_model(model_dir, default_model)
-        self.voices["default"] = piper_tts.PiperTTS(model, config)
+        # model, config = piper_tts.get_model(model_dir, default_model)
+        # self.voices["default"] = piper_tts.PiperTTS(model, config)
 
         self.configure()
+        v = self.get_voice(default_speaker)
+        if v is None:
+            rospy.logerr(f"default_speaker not found: ${default_speaker}")
+        else:
+            self.voices["default"] = v
 
         # This is just to warmup the default network
         data = self.voices["default"].synthesize("Good Morning")
@@ -79,7 +85,7 @@ class PiperNode(object):
         if langid in self.voices.keys():
             return self.voices[langid]
         else:
-            rospy.logerr(f"failed to find voide {langid}")
+            rospy.logerr(f"failed to find voice {langid}")
             return None
 
     # def forward(self, goal):
@@ -103,25 +109,43 @@ class PiperNode(object):
         if goal.text_lang != goal.speaker_lang:
 
             if not self.translate:
-                rospy.logerr("translation disabled")
+                rospy.logerr("translation disabled and text_lang!=speaker_lang")
                 self._as.set_aborted()
                 return
+
+            s = util.lang_to_flores200.get(goal.text_lang, "unknown")
+            t = util.lang_to_flores200.get(goal.speaker_lang, None)
+            if t is None:
+                rospy.logerr(
+                    f"unknown translation language, translator may default to EN"
+                )
 
             translate = TranslateRequest()
             translate.text = goal.text
             translate.target_lang = goal.speaker_lang
             res = self._translate_client.call(translate)
+            rospy.loginfo(f"translated [{s}]->[{t}]: '{text_to_speek}' -> '{res.text}'")
             text_to_speek = res.text
 
         self._result.text = text_to_speek
-        rospy.loginfo(f"say({goal.speakerName}): {text_to_speek}")
 
-        voice = self.get_voice(goal.speakerName)
+        speaker = goal.speakerName
+        if speaker == "":
+            # Default to speaker_lang
+            speaker = util.lang_from_int(goal.speaker_lang)
+            voice = self.get_voice(speaker)
+            if voice is None:
+                speaker = ""
+                voice = self.get_voice(speaker)
+        else:
+            self.get_voice(goal.speakerName)
+
         if voice is None:
-            rospy.logerr(f"speaker {goal.speakerName} not found")
+            rospy.logerr(f"speaker {speaker} not found")
             self._as.set_aborted()
             return
 
+        rospy.loginfo(f"say({speaker}): {text_to_speek}")
         audio_stream = voice.synthesize(text_to_speek)
 
         for data in audio_stream:
@@ -156,6 +180,6 @@ if __name__ == "__main__":
     rospy.init_node("piper_ttsl")
     translate = rospy.get_param("~translate", False)
     model_dir = rospy.get_param("~model_dir", "/home/robocup-adm/tmp/tts/karlsson")
-    default_model = rospy.get_param("~default_model", "de_DE-karlsson-low")
+    default_model = rospy.get_param("~default_model", "en")
     PiperNode(model_dir, default_model, translate)
     rospy.spin()

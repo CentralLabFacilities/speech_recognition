@@ -1,6 +1,6 @@
 <launch>
-    <arg name="model" default="$(find ros_nllb)/models/nllb-200-distilled-600M"/>
-    <arg name="ct2_model" default="$(find ros_nllb)/models/ct-nllb-200-distilled-600M"/>
+    <arg name="model" default="/vol/tiago/one/nightly-speech/share/nllb-models/nllb-200-distilled-600M/"/>
+    <arg name="ct2_model" default="/vol/tiago/one/nightly-speech/share/nllb-models/ct2-nllb-200-distilled-600M/"/>
 
     <node pkg="ros_nllb" type="ct2_node" name="ros_nllb" output="screen">
         <param name="model" value="$(arg model)"/>
