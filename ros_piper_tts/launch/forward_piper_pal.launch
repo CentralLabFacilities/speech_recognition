@@ -1,11 +1,16 @@
 <launch>
 
     <arg name="model_dir" default="$(find ros_piper_tts)/models"/>
+    <arg name="config" default="minimal.yaml"/>
+    <arg name="config_file" default="$(find ros_piper_tts)/models/$(arg config)"/>
+    <arg name="translate" default="false"/>
 
     <node pkg="ros_piper_tts" type="piper_node_palforward" name="piper_tts" output="screen">
+        <remap from="/translate" to="/ros_nllb/translate" />
+        <param name="translate" value="$(arg translate)"/>
         <param name="model_dir" value="$(arg model_dir)"/>
         <param name="default_model" value="de"/>
-        <rosparam command="load" file="$(find ros_piper_tts)/config/default.yaml"/>
+        <rosparam command="load" file="$(arg config_file)"/>
     </node>
 
 </launch> 
