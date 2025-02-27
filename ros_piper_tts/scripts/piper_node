@@ -104,6 +104,7 @@ class PiperNode(object):
 
         # if goal.text_lang == ASR.EN and goal.speaker_lang == ASR.EN:
         #    return self.forward(goal)
+        rospy.loginfo(f"got request {goal}")
 
         text_to_speek = goal.text
         if goal.text_lang != goal.speaker_lang:
