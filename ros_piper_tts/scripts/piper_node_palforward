@@ -23,18 +23,18 @@ class PiperNode(object):
         self.model_dir = model_dir
 
         self.voices = {}
-        v = self.get_voice(default_speaker)
-        if v is None:
-            rospy.logerr(f"default_speaker not found: ${default_speaker}")
-        else:
-            self.voices["default"] = v
 
         self.configure()
 
-        # This is just to warmup the default network
-        data = self.voices["default"].synthesize("Good Morning")
-        for d in data:
-            pass
+        v = self.get_voice(default_speaker)
+        if v is None:
+            rospy.logerr(f"default_speaker not found: {default_speaker}")
+        else:
+            self.voices["default"] = v
+            # This is just to warmup the default network
+            data = self.voices["default"].synthesize("Good Morning")
+            for d in data:
+                pass
 
         self._as = actionlib.SimpleActionServer(
             "/piper_tts",
@@ -132,7 +132,7 @@ class PiperNode(object):
             res = self._translate_client.call(translate)
             rospy.loginfo(f"translated [{s}]->[{t}]: '{text_to_speek}' -> '{res.text}'")
             text_to_speek = res.text
-           
+
         self._result.text = text_to_speek
 
         speaker = goal.speakerName
