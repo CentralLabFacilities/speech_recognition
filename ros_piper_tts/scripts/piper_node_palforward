@@ -107,6 +107,7 @@ class PiperNode(object):
         r = rospy.Rate(10)
         success = True
 
+        rospy.loginfo(f"got request {goal}")
         if goal.text_lang == ASR.EN and goal.speaker_lang == ASR.EN:
             return self.forward(goal)
 
@@ -120,13 +121,18 @@ class PiperNode(object):
 
             s = util.lang_to_flores200.get(goal.text_lang, "unknown")
             t = util.lang_to_flores200.get(goal.speaker_lang, "unknown")
-            rospy.loginfo(f"translating [{s}]->[{t}]: 'text_to_speek'")
+            if t is None:
+                rospy.logerr(
+                    f"unknown translation language, translator may default to EN"
+                )
+
             translate = TranslateRequest()
             translate.text = goal.text
             translate.target_lang = goal.speaker_lang
             res = self._translate_client.call(translate)
+            rospy.loginfo(f"translated [{s}]->[{t}]: '{text_to_speek}' -> '{res.text}'")
             text_to_speek = res.text
-
+           
         self._result.text = text_to_speek
 
         speaker = goal.speakerName
@@ -177,7 +183,7 @@ class PiperNode(object):
 if __name__ == "__main__":
 
     # Start ROS node
-    rospy.init_node("piper_ttsl")
+    rospy.init_node("piper_tts")
     translate = rospy.get_param("~translate", False)
     model_dir = rospy.get_param("~model_dir", "/home/robocup-adm/tmp/tts/karlsson")
     default_model = rospy.get_param("~default_model", "en")
