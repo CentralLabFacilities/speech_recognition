@@ -2,7 +2,7 @@
 
     <arg name="model_dir" default="$(find ros_piper_tts)/models"/>
     <arg name="config" default="minimal.yaml"/>
-    <arg name="config_file" default="$(find ros_piper_tts)/models/$(arg config)"/>
+    <arg name="config_file" default="$(find ros_piper_tts)/config/$(arg config)"/>
     <arg name="translate" default="false"/>
 
     <node pkg="ros_piper_tts" type="piper_node_palforward" name="piper_tts" output="screen">
