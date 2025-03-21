@@ -127,6 +127,11 @@ class CLFSpeech(Plugin):
         value = self._widget.text_input.text()
         rospy.loginfo(logger_name="CLFSpeech", msg=f"sending {value}")
         self.publisher.publish(value)
+        asr = ASR()
+        asr.text = value
+        asr.conf = 1.0
+        asr.lang = asr.EN
+        self.asr_publisher.publish(asr)
         # label.setText(value)
 
     def refresh_topics(self):
@@ -176,6 +181,7 @@ class CLFSpeech(Plugin):
         topic = self._asr_topic
         rospy.loginfo(logger_name="CLFSpeech", msg=f"subscribe to {topic}")
         self.asr_subscriber = rospy.Subscriber(topic, ASR, self.callback_asr)
+        self.asr_publisher = rospy.Publisher(topic, ASR, queue_size=1)
 
         topic = self._audio_ns + "/set_min_amp"
         self.service_set_amp = rospy.ServiceProxy(topic, SetFloat32)
