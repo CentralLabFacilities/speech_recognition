@@ -58,7 +58,7 @@ class PiperNode(object):
         rospy.loginfo("piper_tts started")
 
     def configure(self):
-        meta_param = rospy.get_param("/piper_tts/models")
+        meta_param = rospy.get_param("/piper_tts/models", [])
         print(meta_param)
 
         param_names = rospy.get_param_names()
