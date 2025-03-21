@@ -9,7 +9,6 @@
         <remap from="/translate" to="/ros_nllb/translate" />
         <param name="translate" value="$(arg translate)"/>
         <param name="model_dir" value="$(arg model_dir)"/>
-        <param name="default_model" value="none"/>
         <rosparam command="load" file="$(arg config_file)"/>
     </node>
 
