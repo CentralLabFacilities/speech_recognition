@@ -1,0 +1,73 @@
+#!/usr/bin/env python
+
+import pyaudio
+
+import rospy
+import numpy as np
+from audio_common_msgs.msg import AudioData, AudioInfo
+
+class Recorder:
+
+	def __init__(self) -> None:
+
+		self._pub = rospy.Publisher("audio", AudioData, queue_size=1)
+
+		self._info_pub = rospy.Publisher("audio_info", AudioInfo, queue_size=1, latch=True)
+
+		channels = 1
+		self.frames_per_buffer = 160
+		rate = 16000
+
+		self._info = AudioInfo()
+		self._info.channels = channels
+		self._info.sample_rate = rate
+		self._info.bitrate = 128
+		self._info.sample_format = "F32LE"
+		self._info.coding_format = "wave"
+
+		self._info_pub.publish(self._info)
+
+		self.pyaudio_ = pyaudio.PyAudio()
+		self.stream_ = self.pyaudio_.open(
+            channels=channels,
+            format=pyaudio.paFloat32,
+            input=True,
+            frames_per_buffer=self.frames_per_buffer,
+            rate=16000,
+			#stream_callback=self.audio_callback
+        )
+		
+		self.warn_frames = self.frames_per_buffer * 2
+		
+	#def audio_callback(self, in_data, frame_count, time_info, status) -> None:
+	#	msg = AudioData()
+	#	msg.data = in_data
+	#	self._pub.publish(msg)
+
+	def read_audio(self) -> None:
+		audio = self.stream_.read(self.frames_per_buffer)
+		#audio = np.frombuffer(audio, dtype=np.float32)
+		available = self.stream_.get_read_available()
+		if(available > self.warn_frames):
+			rospy.logerr(f"still {available} frames available")
+		msg = AudioData()
+		msg.data = audio
+		self._pub.publish(msg)
+
+def main():
+	rospy.init_node("pyaudio_record")
+	node = Recorder()
+
+	#rospy.spin()
+
+	# extra 5hz to eat missed buffers
+	# bitrate and framesize limits to 100hz anyway
+	rate = rospy.Rate(105)
+	while not rospy.is_shutdown():
+		node.read_audio()
+		rate.sleep()
+
+
+if __name__ == "__main__":
+    main()
+	
