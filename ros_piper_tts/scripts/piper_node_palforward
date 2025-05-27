@@ -92,7 +92,7 @@ class PiperNode(object):
             return None
 
     def forward(self, goal):
-        palgoal = palmsg.TtsGoal
+        palgoal = palmsg.TtsGoal()
         palgoal.rawtext.text = goal.text
         palgoal.rawtext.lang_id = "en_GB"
         self._tts_client.send_goal(palgoal)
