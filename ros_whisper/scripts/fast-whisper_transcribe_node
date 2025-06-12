@@ -39,10 +39,10 @@ class WhisperNode:
 
         if audio_info.sample_format.lower() == "s16le":
             self.depth_type = np.int16
-            self.nomalization = float(np.iinfo(self.depth_type).max)
+            self.normalization = float(np.iinfo(self.depth_type).max)
         elif audio_info.sample_format.lower() == "f32le":
             self.depth_type = np.float32
-            self.nomalization = None
+            self.normalization = None
         else:
             msg = f"unhandled audio format"
             rospy.logerr(logger_name="Whisper", msg=msg)
@@ -65,10 +65,10 @@ class WhisperNode:
         rospy.loginfo(f"starting transcription..")
         start = time.time()
         audio_data = np.frombuffer(data.data, dtype=self.depth_type)
-        if self.nomalization is None:
+        if self.normalization is None:
             pass
         else:
-            audio_data = np.divide(audio_data, self.nomalization)
+            audio_data = np.divide(audio_data, self.normalization)
         # audio = whisper.pad_or_trim(audio)
         # mel = whisper.log_mel_spectrogram(audio, self.n_mels, device=self.device_).to(
         #    self.device_
