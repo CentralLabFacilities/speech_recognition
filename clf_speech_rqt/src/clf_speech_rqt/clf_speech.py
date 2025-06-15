@@ -6,7 +6,7 @@ import threading
 from .NLUTableModel import NLUTableModel
 
 from python_qt_binding import loadUi
-from python_qt_binding.QtCore import QTimer
+from python_qt_binding.QtCore import QTimer, QModelIndex
 from python_qt_binding.QtWidgets import QWidget
 from python_qt_binding.QtGui import QIcon, QStandardItem, QStandardItemModel, QPixmap
 from qt_gui.plugin import Plugin
@@ -15,6 +15,12 @@ from std_msgs.msg import Float32, Bool, String
 from std_srvs.srv import SetBool, SetBoolRequest
 from clf_speech_msgs.srv import SetFloat32, SetFloat32Request
 from clf_speech_msgs.msg import NLU, ASR
+
+
+def limit_rows(model, num):
+    """Limit the number of rows in the ASR widget to num"""
+    if model.rowCount(QModelIndex()) > num:
+        model.setRowCount(num)
 
 
 class CLFSpeech(Plugin):
@@ -202,7 +208,7 @@ class CLFSpeech(Plugin):
         rospy.loginfo(logger_name="CLFSpeech", msg=f"asr: {message.data}")
         item = QStandardItem(message.data)
         self.text_list_model.insertRow(0, item)
-        self.text_list_model.setRowCount(20)  # limit to 20 rows
+        limit_rows(self.text_list_model, 20)  # limit to 20 rows
 
     def callback_asr(self, message: ASR):
         rospy.loginfo(logger_name="CLFSpeech", msg=f"asr: {message.text}")
@@ -212,7 +218,7 @@ class CLFSpeech(Plugin):
             return
         item = QStandardItem(f"({message.lang}) {message.text}")
         self.text_list_model.insertRow(0, item)
-        self.text_list_model.setRowCount(20)  # limit to 20 rows
+        limit_rows(self.text_list_model, 20)  # limit to 20 rows
 
     def callback_nlu(self, message):
         self._widget.nlu_table.show()
@@ -221,7 +227,7 @@ class CLFSpeech(Plugin):
             logger_name="CLFSpeech",
         )
         self.nlu_model.add_nlu(message)
-        self._widget.nlu_table.viewport().update()
+        limit_rows(self.nlu_model, 5)
 
     def callback_amp(self, message):
         with self.amp_lock:

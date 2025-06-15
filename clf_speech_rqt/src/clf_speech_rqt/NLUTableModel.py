@@ -11,8 +11,9 @@ class NLUTableModel(QtCore.QAbstractTableModel):
     def add_nlu(self, nlu: NLU):
         entities = "; ".join(map(lambda e: f"{e.key}:{e.value}", nlu.entities))
         row = [nlu.intent, entities, nlu.text]
+        self.beginInsertRows(QtCore.QModelIndex(), 0, 0)
         self._data.insert(0, row)
-        self._data = self._data[:5]
+        self.endInsertRows()
 
     def headerData(self, col, orientation, role):
         if orientation == Qt.Horizontal and role == Qt.DisplayRole:
@@ -37,3 +38,8 @@ class NLUTableModel(QtCore.QAbstractTableModel):
 
     def columnCount(self, index):
         return 3
+
+    def setRowCount(self, count):
+        self.beginRemoveRows(QtCore.QModelIndex(), count, len(self._data) - 1)
+        self._data = self._data[:count]
+        self.endRemoveRows()
