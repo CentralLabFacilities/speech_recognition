@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 import sys
 from collections import deque
 
@@ -43,7 +43,7 @@ class WhisperNode:
         else:
             raise "unknown audio format"
 
-        self.nomalization = float(np.iinfo(self.depth_type).max)
+        self.normalization = float(np.iinfo(self.depth_type).max)
 
         bitrate = 128
         n_channel = 1
@@ -119,7 +119,7 @@ class WhisperNode:
         start = time.time()
 
         audio = np.asarray(self.recognize_buffer, dtype=self.depth_type)
-        audio = np.divide(audio, self.nomalization)  # -1.0 to 1.0
+        audio = np.divide(audio, self.normalization)  # -1.0 to 1.0
         # abs = np.absolute(audio)
         # mean = np.mean(abs)
         # peak = np.max(abs)
