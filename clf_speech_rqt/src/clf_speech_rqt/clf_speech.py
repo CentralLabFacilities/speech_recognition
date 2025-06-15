@@ -35,6 +35,7 @@ class CLFSpeech(Plugin):
         self.setObjectName("CLFSpeech")
 
         self.amp_lock = threading.Lock()
+        self.min_amp = 0
         self.last_amp = 0.0
         self.recording_lock = threading.Lock()
         self.recording = False
@@ -48,15 +49,6 @@ class CLFSpeech(Plugin):
         self._nlu_topic = "/rasa/nlu"
         self._ignore_asr_text = None
 
-        try:
-            msg = rospy.wait_for_message(
-                f"{self._audio_ns}/min_amp", Float32, timeout=2
-            )
-            self.min_amp = int(msg.data * 100)
-        except rospy.ROSException as e:
-            rospy.logwarn(f"{e}", logger_name="CLFSpeech")
-            self.min_amp = 0
-
         # Create QWidget and populate it via the UI file
         self._widget = QWidget()
         rp = rospkg.RosPack()
@@ -64,8 +56,6 @@ class CLFSpeech(Plugin):
         ui_file = os.path.join(path, "resource", "clf_speech.ui")
         loadUi(ui_file, self._widget)
         self._widget.setObjectName("CLF Speech UI")
-
-        self._widget.audio_slider.setValue(self.min_amp)
 
         self._icons = {
             name: QIcon(QPixmap(os.path.join(path, "resource", file)))
@@ -85,6 +75,8 @@ class CLFSpeech(Plugin):
 
         self.text_list_model = QStandardItemModel()
         self._widget.asr_list.setModel(self.text_list_model)
+
+        self.init_text_inputs_from_params()
         self._widget.text_input.currentIndexChanged.connect(self.send_text)
 
         self.nlu_model = NLUTableModel()
@@ -97,16 +89,26 @@ class CLFSpeech(Plugin):
         # Add widget to the user interface
         context.add_widget(self._widget)
 
+        self.subscribe()
+
+        if self.nlu_subscriber.get_num_connections() == 0:
+            self._widget.nlu_table.hide()
+
+        if self.audio_subscriber.get_num_connections() > 0:
+            try:
+                topic = f"{self._audio_ns}/min_amp"
+                msg = rospy.wait_for_message(topic, Float32, timeout=2.0)
+                self.min_amp = int(msg.data * 100)
+
+            except rospy.ROSException as e:
+                rospy.logwarn(f"{e}", logger_name="CLFSpeech")
+        self._widget.audio_slider.setValue(self.min_amp)
+
         # init and start update timer
         self._timer_refresh_topics = QTimer(self)
         self._timer_refresh_topics.setInterval(10)
         self._timer_refresh_topics.timeout.connect(self.refresh_topics)
-
-        self.init_text_inputs_from_params()
-        self.start_monitor()
-
-        if self.nlu_subscriber.get_num_connections() == 0:
-            self._widget.nlu_table.hide()
+        self._timer_refresh_topics.start()
 
     def init_text_inputs_from_params(self):
         """
@@ -169,7 +171,7 @@ class CLFSpeech(Plugin):
                 else:
                     self._widget.enabled_button.setIcon(self._icons["stopped"])
 
-    def start_monitor(self):
+    def subscribe(self):
         topic = self._audio_ns + "/amp"
         rospy.loginfo(logger_name="CLFSpeech", msg=f"subscribe to {topic}")
         self.audio_subscriber = rospy.Subscriber(topic, Float32, self.callback_amp)
@@ -201,8 +203,6 @@ class CLFSpeech(Plugin):
 
         topic = self._audio_ns + "/enable_vad"
         self.service_enable_vad = rospy.ServiceProxy(topic, SetBool)
-
-        self._timer_refresh_topics.start()
 
     def callback_asr_text(self, message):
         rospy.loginfo(logger_name="CLFSpeech", msg=f"asr: {message.data}")
