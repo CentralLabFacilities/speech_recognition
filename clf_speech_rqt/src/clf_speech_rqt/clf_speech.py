@@ -12,6 +12,7 @@ from python_qt_binding.QtGui import QIcon, QStandardItem, QStandardItemModel, QP
 from qt_gui.plugin import Plugin
 
 from std_msgs.msg import Float32, Bool, String
+from std_srvs.srv import SetBool, SetBoolRequest
 from clf_speech_msgs.srv import SetFloat32, SetFloat32Request
 from clf_speech_msgs.msg import NLU, ASR
 
@@ -59,13 +60,15 @@ class CLFSpeech(Plugin):
 
         self._widget.audio_slider.setValue(self.min_amp)
 
-        self._pixmaps = {
-            "recording": QPixmap(os.path.join(path, "resource", "led_green.png")),
-            "stopped": QPixmap(os.path.join(path, "resource", "led_red.png")),
-            "disabled": QPixmap(os.path.join(path, "resource", "led_off.png")),
+        self._icons = {
+            name: QIcon(QPixmap(os.path.join(path, "resource", file)))
+            for name, file in zip(
+                ["recording", "stopped", "disabled"],
+                ["led_green.png", "led_red.png", "led_off.png"],
+            )
         }
-
-        self._widget.enabled_label.setPixmap(self._pixmaps["disabled"])
+        self._widget.enabled_button.setIcon(self._icons["disabled"])
+        self._widget.enabled_button.pressed.connect(self.toggle_vad_enabled)
 
         # Add instance ID to window title to distinguish multiple instances
         if context.serial_number() > 1:
@@ -104,6 +107,18 @@ class CLFSpeech(Plugin):
         asr.lang = asr.EN
         self.asr_publisher.publish(asr)
 
+    def toggle_vad_enabled(self):
+        with self.enabled_lock:
+            current = self.vad_enabled
+
+        # Call service to enable/disable VAD
+        req = SetBoolRequest()
+        req.data = not current
+        try:
+            self.service_enable_vad(req)
+        except rospy.ServiceException as e:
+            rospy.logerr(f"{e}", logger_name="CLFSpeech")
+
     def refresh_topics(self):
         # rospy.loginfo(logger_name="CLFSpeech", msg=f"REFRESH")
         if self.min_amp != self._widget.audio_slider.value():
@@ -121,11 +136,11 @@ class CLFSpeech(Plugin):
         with self.enabled_lock:
             with self.recording_lock:
                 if not self.vad_enabled:
-                    self._widget.enabled_label.setPixmap(self._pixmaps["disabled"])
+                    self._widget.enabled_button.setIcon(self._icons["disabled"])
                 elif self.recording:
-                    self._widget.enabled_label.setPixmap(self._pixmaps["recording"])
+                    self._widget.enabled_button.setIcon(self._icons["recording"])
                 else:
-                    self._widget.enabled_label.setPixmap(self._pixmaps["stopped"])
+                    self._widget.enabled_button.setIcon(self._icons["stopped"])
 
     def start_monitor(self):
         topic = self._audio_ns + "/amp"
@@ -156,6 +171,9 @@ class CLFSpeech(Plugin):
 
         topic = self._audio_ns + "/set_min_amp"
         self.service_set_amp = rospy.ServiceProxy(topic, SetFloat32)
+
+        topic = self._audio_ns + "/enable_vad"
+        self.service_enable_vad = rospy.ServiceProxy(topic, SetBool)
 
         self._timer_refresh_topics.start()
 
