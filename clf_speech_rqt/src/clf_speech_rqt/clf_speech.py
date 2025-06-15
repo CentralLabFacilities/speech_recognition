@@ -40,6 +40,7 @@ class CLFSpeech(Plugin):
         self._asr_text_topic = "/ros_whisper/text"
         self._asr_topic = "/ros_whisper/asr"
         self._nlu_topic = "/rasa/nlu"
+        self._ignore_asr_text = None
 
         try:
             msg = rospy.wait_for_message(
@@ -101,6 +102,8 @@ class CLFSpeech(Plugin):
         value = self._widget.text_input.text()
         rospy.loginfo(logger_name="CLFSpeech", msg=f"sending '{value}'")
         self.publisher.publish(value)
+
+        self._ignore_asr_text = value
         asr = ASR()
         asr.text = value
         asr.conf = 1.0
@@ -185,6 +188,10 @@ class CLFSpeech(Plugin):
 
     def callback_asr(self, message: ASR):
         rospy.loginfo(logger_name="CLFSpeech", msg=f"asr: {message.text}")
+        # avoid listing the same text twice
+        if message.text == self._ignore_asr_text:
+            self._ignore_asr_text = None
+            return
         item = QStandardItem(f"({message.lang}) {message.text}")
         self.text_list_model.insertRow(0, item)
         self.text_list_model.setRowCount(20)  # limit to 20 rows
