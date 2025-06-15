@@ -34,7 +34,7 @@
     </widget>
    </item>
    <item>
-    <widget class="QProgressBar" name="audo_bar">
+    <widget class="QProgressBar" name="audio_bar">
      <property name="maximum">
       <number>100</number>
      </property>

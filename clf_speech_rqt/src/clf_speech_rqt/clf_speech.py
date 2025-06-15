@@ -3,37 +3,17 @@ import os
 import rospkg
 import rospy
 import threading
-from .TableModel import TableModel
+from .NLUTableModel import NLUTableModel
 
 from python_qt_binding import loadUi
-from python_qt_binding.QtCore import (
-    QAbstractTableModel,
-    QModelIndex,
-    Qt,
-    QTimer,
-    QVariant,
-    Signal,
-)
-from python_qt_binding.QtWidgets import (
-    QWidget,
-    QFormLayout,
-    QHeaderView,
-    QMenu,
-    QStyledItemDelegate,
-)
-from python_qt_binding.QtGui import (
-    QCursor,
-    QFont,
-    QIcon,
-    QStandardItem,
-    QStandardItemModel,
-    QPixmap,
-)
+from python_qt_binding.QtCore import QTimer
+from python_qt_binding.QtWidgets import QWidget
+from python_qt_binding.QtGui import QIcon, QStandardItem, QStandardItemModel, QPixmap
 from qt_gui.plugin import Plugin
 
 from std_msgs.msg import Float32, Bool, String
-from clf_speech_msgs.srv import SetFloat32, SetFloat32Request, SetFloat32Response
-from clf_speech_msgs.msg import Entity, NLU, ASR
+from clf_speech_msgs.srv import SetFloat32, SetFloat32Request
+from clf_speech_msgs.msg import NLU, ASR
 
 
 class CLFSpeech(Plugin):
@@ -61,52 +41,43 @@ class CLFSpeech(Plugin):
         self._nlu_topic = "/rasa/nlu"
 
         try:
-            self.min_amp = int(
-                rospy.wait_for_message(
-                    f"{self._audio_ns}/min_amp", Float32, timeout=2
-                ).data
-                * 100
+            msg = rospy.wait_for_message(
+                f"{self._audio_ns}/min_amp", Float32, timeout=2
             )
-        except:
+            self.min_amp = int(msg.data * 100)
+        except rospy.ROSException as e:
+            rospy.logwarn(f"{e}", logger_name="CLFSpeech")
             self.min_amp = 0
 
-        # Create QWidget and extend it with all the attributes and children
-        # from the UI file
+        # Create QWidget and populate it via the UI file
         self._widget = QWidget()
         rp = rospkg.RosPack()
-        ui_file = os.path.join(
-            rp.get_path("clf_speech_rqt"), "resource", "clf_speech.ui"
-        )
+        path = rp.get_path("clf_speech_rqt")
+        ui_file = os.path.join(path, "resource", "clf_speech.ui")
         loadUi(ui_file, self._widget)
-        self._widget.setObjectName("ClfSpeechUi")
+        self._widget.setObjectName("CLF Speech UI")
 
         self._widget.audio_slider.setValue(self.min_amp)
 
-        path = rp.get_path("clf_speech_rqt")
         self._pixmaps = {
-            "recording": QPixmap(path + "/resource/led_green.png"),
-            "stopped": QPixmap(path + "/resource/led_red.png"),
-            "disabled": QPixmap(path + "/resource/led_off.png"),
+            "recording": QPixmap(os.path.join(path, "resource", "led_green.png")),
+            "stopped": QPixmap(os.path.join(path, "resource", "led_red.png")),
+            "disabled": QPixmap(os.path.join(path, "resource", "led_off.png")),
         }
 
         self._widget.enabled_label.setPixmap(self._pixmaps["disabled"])
-        # self._widget.enabled_label.setScaledContents(True)
 
-        # Show _widget.windowTitle on left-top of each plugin (when
-        # it's set in _widget). This is useful when you open multiple
-        # plugins at once. Also if you open multiple instances of your
-        # plugin at once, these lines add number to make it easy to
-        # tell from pane to pane.
+        # Add instance ID to window title to distinguish multiple instances
         if context.serial_number() > 1:
             self._widget.setWindowTitle(
-                self._widget.windowTitle() + (" (%d)" % context.serial_number())
+                f"{self._widget.windowTitle()} {context.serial_number()}"
             )
 
         self.text_list_model = QStandardItemModel()
         self._widget.asr_list.setModel(self.text_list_model)
         self._widget.text_input.returnPressed.connect(self.send_text)
 
-        self.nlu_model = TableModel()
+        self.nlu_model = NLUTableModel()
         self._widget.nlu_table.setModel(self.nlu_model)
         # self._widget.nlu_table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeToContents)
         self._widget.nlu_table.setColumnWidth(0, 180)
@@ -125,14 +96,13 @@ class CLFSpeech(Plugin):
 
     def send_text(self):
         value = self._widget.text_input.text()
-        rospy.loginfo(logger_name="CLFSpeech", msg=f"sending {value}")
+        rospy.loginfo(logger_name="CLFSpeech", msg=f"sending '{value}'")
         self.publisher.publish(value)
         asr = ASR()
         asr.text = value
         asr.conf = 1.0
         asr.lang = asr.EN
         self.asr_publisher.publish(asr)
-        # label.setText(value)
 
     def refresh_topics(self):
         # rospy.loginfo(logger_name="CLFSpeech", msg=f"REFRESH")
@@ -140,10 +110,13 @@ class CLFSpeech(Plugin):
             self.min_amp = self._widget.audio_slider.value()
             amp_rec = SetFloat32Request()
             amp_rec.data = self.min_amp / 100.0
-            res = self.service_set_amp(amp_rec)
+            try:
+                self.service_set_amp(amp_rec)
+            except rospy.ServiceException as e:
+                rospy.logerr(f"{e}", logger_name="CLFSpeech")
 
         with self.amp_lock:
-            self._widget.audo_bar.setValue(int(self.last_amp * 100))
+            self._widget.audio_bar.setValue(int(self.last_amp * 100))
 
         with self.enabled_lock:
             with self.recording_lock:
@@ -169,13 +142,11 @@ class CLFSpeech(Plugin):
 
         topic = self._nlu_topic
         rospy.loginfo(logger_name="CLFSpeech", msg=f"subscribe to {topic}")
-        self.rec_subscriber = rospy.Subscriber(topic, NLU, self.callback_nlu)
+        self.nlu_subscriber = rospy.Subscriber(topic, NLU, self.callback_nlu)
 
         topic = self._asr_text_topic
         rospy.loginfo(logger_name="CLFSpeech", msg=f"subscribe to {topic}")
-        self.asr_text_subscriber = rospy.Subscriber(
-            topic, String, self.callback_asr_text
-        )
+        self.asr_text_subscriber = rospy.Subscriber(topic, String, self.callback_asr_text)
         self.publisher = rospy.Publisher(topic, String, queue_size=1)
 
         topic = self._asr_topic
@@ -189,28 +160,23 @@ class CLFSpeech(Plugin):
         self._timer_refresh_topics.start()
 
     def callback_asr_text(self, message):
-        self.last_asr = message.data
         rospy.loginfo(logger_name="CLFSpeech", msg=f"asr: {message.data}")
         item = QStandardItem(message.data)
         self.text_list_model.insertRow(0, item)
-        self.text_list_model.setRowCount(20)
-        # self.text_list_model.appendRow(item)
+        self.text_list_model.setRowCount(20)  # limit to 20 rows
 
     def callback_asr(self, message: ASR):
-        self.last_asr = message.text
         rospy.loginfo(logger_name="CLFSpeech", msg=f"asr: {message.text}")
         item = QStandardItem(f"({message.lang}) {message.text}")
         self.text_list_model.insertRow(0, item)
-        self.text_list_model.setRowCount(20)
-        # self.text_list_model.appendRow(item)
+        self.text_list_model.setRowCount(20)  # limit to 20 rows
 
     def callback_nlu(self, message):
-        self.last_nlu = message
         rospy.loginfo(
+            f"nlu for : '{message.text}' intent:{message.intent}",
             logger_name="CLFSpeech",
-            msg=f"nlu for : '{self.last_nlu.text}' intent:{self.last_nlu.intent}",
         )
-        self.nlu_model.add_nlu(self.last_nlu)
+        self.nlu_model.add_nlu(message)
         self._widget.nlu_table.viewport().update()
 
     def callback_amp(self, message):
@@ -229,7 +195,8 @@ class CLFSpeech(Plugin):
         self._timer_refresh_topics.stop()
 
     def save_settings(self, plugin_settings, instance_settings):
-        instance_settings.set_value("audio_ns", self._audio_ns)
+        # Save session settings
+        pass
 
     def restore_settings(self, plugin_settings, instance_settings):
         # Restore last session
