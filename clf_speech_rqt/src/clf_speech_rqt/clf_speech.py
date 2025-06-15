@@ -96,10 +96,20 @@ class CLFSpeech(Plugin):
         self._timer_refresh_topics.setInterval(10)
         self._timer_refresh_topics.timeout.connect(self.refresh_topics)
 
+        self.init_text_inputs_from_params()
         self.start_monitor()
 
         if self.nlu_subscriber.get_num_connections() == 0:
             self._widget.nlu_table.hide()
+
+    def init_text_inputs_from_params(self):
+        """
+        Initialize the text input dropdown with values from ROS parameters.
+        """
+        self._widget.text_input.clear()
+        text_inputs = rospy.get_param("~text_inputs", [])
+        for text in text_inputs:
+            self._widget.text_input.addItem(text)
 
     def send_text(self):
         if self._widget.text_input.currentIndex() < 0:
