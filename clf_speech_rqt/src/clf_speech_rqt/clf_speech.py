@@ -7,8 +7,9 @@ from .NLUTableModel import NLUTableModel
 from .FontZoomWidget import FontZoomWidget
 
 from python_qt_binding import loadUi
-from python_qt_binding.QtCore import QTimer, QModelIndex
+from python_qt_binding.QtCore import Qt, QTimer, QModelIndex
 from python_qt_binding.QtGui import QIcon, QStandardItem, QStandardItemModel, QPixmap
+from python_qt_binding.QtGui import QBrush, QColor
 from qt_gui.plugin import Plugin
 
 from std_msgs.msg import Float32, Bool, String
@@ -47,6 +48,7 @@ class CLFSpeech(Plugin):
         self._asr_text_topic = "/ros_whisper/text"
         self._asr_topic = "/ros_whisper/asr"
         self._nlu_topic = "/rasa/nlu"
+        self._tts_topic = "/tts"
         self._ignore_asr_text = None
 
         # Create QWidget and populate it via the UI file
@@ -74,7 +76,7 @@ class CLFSpeech(Plugin):
             )
 
         self.text_list_model = QStandardItemModel()
-        self._widget.asr_list.setModel(self.text_list_model)
+        self._widget.chat.setModel(self.text_list_model)
 
         self.init_text_inputs_from_params()
         self._widget.text_input.currentIndexChanged.connect(self.send_text)
@@ -198,17 +200,19 @@ class CLFSpeech(Plugin):
         self.asr_subscriber = rospy.Subscriber(topic, ASR, self.callback_asr)
         self.asr_publisher = rospy.Publisher(topic, ASR, queue_size=1)
 
+        topic = self._tts_topic
+        rospy.loginfo(logger_name="CLFSpeech", msg=f"subscribe to {topic}")
+        self.tts_subscriber = rospy.Subscriber(topic, String, self.callback_tts)
+
         topic = self._audio_ns + "/set_min_amp"
         self.service_set_amp = rospy.ServiceProxy(topic, SetFloat32)
 
         topic = self._audio_ns + "/enable_vad"
         self.service_enable_vad = rospy.ServiceProxy(topic, SetBool)
 
-    def callback_asr_text(self, message):
+    def callback_asr_text(self, message: String):
         rospy.loginfo(logger_name="CLFSpeech", msg=f"asr: {message.data}")
-        item = QStandardItem(message.data)
-        self.text_list_model.insertRow(0, item)
-        limit_rows(self.text_list_model, 20)  # limit to 20 rows
+        self.add_chat_item(message.data, user=True)
 
     def callback_asr(self, message: ASR):
         rospy.loginfo(logger_name="CLFSpeech", msg=f"asr: {message.text}")
@@ -216,7 +220,19 @@ class CLFSpeech(Plugin):
         if message.text == self._ignore_asr_text:
             self._ignore_asr_text = None
             return
-        item = QStandardItem(f"({message.lang}) {message.text}")
+        self.add_chat_item(f"({message.lang}) {message.text}", user=True)
+
+    def callback_tts(self, message: String):
+        rospy.loginfo(logger_name="CLFSpeech", msg=f"tts: {message.data}")
+        self.add_chat_item(message.data, user=False)
+
+    def add_chat_item(self, text, user=True):
+        item = QStandardItem(text)
+        if user:
+            item.setData(Qt.AlignLeft, role=Qt.TextAlignmentRole)
+        else:
+            item.setData(Qt.AlignRight, role=Qt.TextAlignmentRole)
+            item.setData(QBrush(QColor(Qt.lightGray)), role=Qt.BackgroundRole)
         self.text_list_model.insertRow(0, item)
         limit_rows(self.text_list_model, 20)  # limit to 20 rows
 
