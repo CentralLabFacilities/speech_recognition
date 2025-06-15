@@ -104,12 +104,12 @@
     </layout>
    </item>
    <item>
-    <widget class="QLineEdit" name="text_input">
-     <property name="text">
-      <string/>
+    <widget class="QComboBox" name="text_input">
+     <property name="editable">
+      <bool>true</bool>
      </property>
      <property name="placeholderText">
-      <string>Send Text To Recognition...</string>
+      <string>Send text to recognition...</string>
      </property>
     </widget>
    </item>

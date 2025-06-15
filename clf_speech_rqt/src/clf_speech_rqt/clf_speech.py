@@ -79,7 +79,7 @@ class CLFSpeech(Plugin):
 
         self.text_list_model = QStandardItemModel()
         self._widget.asr_list.setModel(self.text_list_model)
-        self._widget.text_input.returnPressed.connect(self.send_text)
+        self._widget.text_input.currentIndexChanged.connect(self.send_text)
 
         self.nlu_model = NLUTableModel()
         self._widget.nlu_table.setModel(self.nlu_model)
@@ -102,7 +102,9 @@ class CLFSpeech(Plugin):
             self._widget.nlu_table.hide()
 
     def send_text(self):
-        value = self._widget.text_input.text()
+        if self._widget.text_input.currentIndex() < 0:
+            return
+        value = self._widget.text_input.currentText()
         rospy.loginfo(logger_name="CLFSpeech", msg=f"sending '{value}'")
         self.publisher.publish(value)
 
@@ -112,6 +114,9 @@ class CLFSpeech(Plugin):
         asr.conf = 1.0
         asr.lang = asr.EN
         self.asr_publisher.publish(asr)
+
+        # finally clear the text input
+        self._widget.text_input.setCurrentIndex(-1)
 
     def toggle_vad_enabled(self):
         with self.enabled_lock:
