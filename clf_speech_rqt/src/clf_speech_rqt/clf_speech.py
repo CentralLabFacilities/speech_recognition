@@ -98,6 +98,9 @@ class CLFSpeech(Plugin):
 
         self.start_monitor()
 
+        if self.nlu_subscriber.get_num_connections() == 0:
+            self._widget.nlu_table.hide()
+
     def send_text(self):
         value = self._widget.text_input.text()
         rospy.loginfo(logger_name="CLFSpeech", msg=f"sending '{value}'")
@@ -197,6 +200,7 @@ class CLFSpeech(Plugin):
         self.text_list_model.setRowCount(20)  # limit to 20 rows
 
     def callback_nlu(self, message):
+        self._widget.nlu_table.show()
         rospy.loginfo(
             f"nlu for : '{message.text}' intent:{message.intent}",
             logger_name="CLFSpeech",
