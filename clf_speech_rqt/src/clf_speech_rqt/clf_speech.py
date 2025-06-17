@@ -4,10 +4,10 @@ import rospkg
 import rospy
 import threading
 from .NLUTableModel import NLUTableModel
+from .FontZoomWidget import FontZoomWidget
 
 from python_qt_binding import loadUi
 from python_qt_binding.QtCore import QTimer, QModelIndex
-from python_qt_binding.QtWidgets import QWidget
 from python_qt_binding.QtGui import QIcon, QStandardItem, QStandardItemModel, QPixmap
 from qt_gui.plugin import Plugin
 
@@ -50,7 +50,7 @@ class CLFSpeech(Plugin):
         self._ignore_asr_text = None
 
         # Create QWidget and populate it via the UI file
-        self._widget = QWidget()
+        self._widget = FontZoomWidget()
         rp = rospkg.RosPack()
         path = rp.get_path("clf_speech_rqt")
         ui_file = os.path.join(path, "resource", "clf_speech.ui")
@@ -246,8 +246,9 @@ class CLFSpeech(Plugin):
 
     def save_settings(self, plugin_settings, instance_settings):
         # Save session settings
-        pass
+        instance_settings.set_value("font_size", self._widget.font().pointSize())
 
     def restore_settings(self, plugin_settings, instance_settings):
         # Restore last session
-        pass
+        size = int(instance_settings.value("font_size", self._widget.font().pointSize()))
+        self._widget.set_font_size(size)
