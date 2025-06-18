@@ -3,8 +3,8 @@ import os
 import rospkg
 import rospy
 import threading
-from .NLUTableModel import NLUTableModel
-from .FontZoomWidget import FontZoomWidget
+from .models import NLUTableModel
+from .widgets import FontZoomWidget
 
 from python_qt_binding import loadUi
 from python_qt_binding.QtCore import Qt, QTimer, QModelIndex
@@ -227,12 +227,9 @@ class CLFSpeech(Plugin):
         self.add_chat_item(message.data, user=False)
 
     def add_chat_item(self, text, user=True):
-        item = QStandardItem(text)
-        if user:
-            item.setData(Qt.AlignLeft, role=Qt.TextAlignmentRole)
-        else:
-            item.setData(Qt.AlignRight, role=Qt.TextAlignmentRole)
-            item.setData(QBrush(QColor(Qt.lightGray)), role=Qt.BackgroundRole)
+        # replace newlines with <br>
+        item = QStandardItem(text.replace("\n", "<br>"))
+        item.setData(user, role=Qt.UserRole)
         self.text_list_model.insertRow(0, item)
         limit_rows(self.text_list_model, 20)  # limit to 20 rows
 

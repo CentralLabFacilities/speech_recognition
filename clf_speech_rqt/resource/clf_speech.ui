@@ -124,7 +124,7 @@
     </widget>
    </item>
    <item>
-    <widget class="QListView" name="chat">
+    <widget class="ChatListView" name="chat">
      <property name="sizePolicy">
       <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
        <horstretch>0</horstretch>
@@ -172,6 +172,13 @@
    </item>
   </layout>
  </widget>
+ <customwidgets>
+  <customwidget>
+   <class>ChatListView</class>
+   <extends>QListView</extends>
+   <header>clf_speech_rqt.widgets</header>
+  </customwidget>
+ </customwidgets>
  <resources/>
  <connections/>
 </ui>
