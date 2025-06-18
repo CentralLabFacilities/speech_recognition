@@ -20,8 +20,9 @@ from clf_speech_msgs.msg import NLU, ASR
 
 def limit_rows(model, num):
     """Limit the number of rows in the ASR widget to num"""
-    if model.rowCount(QModelIndex()) > num:
-        model.setRowCount(num)
+    rows = model.rowCount(QModelIndex())
+    if rows > num:
+        model.removeRows(0, rows - num, QModelIndex())
 
 
 class CLFSpeech(Plugin):
@@ -50,6 +51,7 @@ class CLFSpeech(Plugin):
         self._nlu_topic = "/rasa/nlu"
         self._tts_topic = "/tts"
         self._ignore_asr_text = None
+        self._scroll_to_bottom = False
 
         # Create QWidget and populate it via the UI file
         self._widget = FontZoomWidget()
@@ -173,6 +175,18 @@ class CLFSpeech(Plugin):
                 else:
                     self._widget.enabled_button.setIcon(self._icons["stopped"])
 
+        if self._scroll_to_bottom:
+            def scroll_to_bottom(view):
+                rows = 0
+                if view.model() is not None:
+                    rows = view.model().rowCount(QModelIndex())
+                if rows > 0:
+                    view.scrollTo(view.model().index(rows - 1, 0))
+
+            self._scroll_to_bottom = False
+            scroll_to_bottom(self._widget.chat)
+            scroll_to_bottom(self._widget.nlu_table)
+
     def subscribe(self):
         topic = self._audio_ns + "/amp"
         rospy.loginfo(logger_name="CLFSpeech", msg=f"subscribe to {topic}")
@@ -230,8 +244,10 @@ class CLFSpeech(Plugin):
         # replace newlines with <br>
         item = QStandardItem(text.replace("\n", "<br>"))
         item.setData(user, role=Qt.UserRole)
-        self.text_list_model.insertRow(0, item)
+        num = self.text_list_model.rowCount(QModelIndex())
+        self.text_list_model.insertRow(num, item)
         limit_rows(self.text_list_model, 20)  # limit to 20 rows
+        self._scroll_to_bottom = True
 
     def callback_nlu(self, message):
         self._widget.nlu_table.show()
@@ -241,6 +257,7 @@ class CLFSpeech(Plugin):
         )
         self.nlu_model.add_nlu(message)
         limit_rows(self.nlu_model, 5)
+        self._scroll_to_bottom = True
 
     def callback_amp(self, message):
         with self.amp_lock:

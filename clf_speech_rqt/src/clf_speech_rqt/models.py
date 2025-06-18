@@ -12,7 +12,7 @@ class NLUTableModel(QtCore.QAbstractTableModel):
         entities = "; ".join(map(lambda e: f"{e.key}:{e.value}", nlu.entities))
         row = [nlu.intent, entities, nlu.text]
         self.beginInsertRows(QtCore.QModelIndex(), 0, 0)
-        self._data.insert(0, row)
+        self._data.insert(len(self._data), row)
         self.endInsertRows()
 
     def headerData(self, col, orientation, role):
