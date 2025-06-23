@@ -22,13 +22,13 @@ from ros_silero_vad.silero import SileroVAD
 class SileroVadNode(SimpleRecorder):
     buffer_lock = threading.Lock()
 
-    def __init__(self, start_amp=0.5) -> None:
+    def __init__(self, start_amp=0.5, enabled=True) -> None:
         super().__init__()
 
         self.recording = False
         self.start_amp = start_amp
 
-        self.enabled = self.chunk = True
+        self.enabled = self.chunk = enabled
 
         self.vad_iterator = SileroVAD()
 
@@ -53,8 +53,9 @@ class SileroVadNode(SimpleRecorder):
             self.audio_cb,
         )
 
-        self.flush_and_enable()
-        self._pub_enabled.publish(True)
+        if enabled:
+            self.flush_and_enable()
+        self._pub_enabled.publish(enabled)
 
         self.one_more = False
 
@@ -94,7 +95,7 @@ class SileroVadNode(SimpleRecorder):
             amp_msg = Float32()
             amp_msg.data = amp
 
-            #print(f"audio amp: {amp_msg.data}")
+            # print(f"audio amp: {amp_msg.data}")
             self._pub_amp.publish(amp_msg)
 
             # Dont start recording until min amplitute is reached?
@@ -173,7 +174,8 @@ class SileroVadNode(SimpleRecorder):
 def main():
     rospy.init_node("silero_vad")
     start_amp = rospy.get_param("~start_amp", 0.0)
-    node = SileroVadNode(start_amp)
+    enabled = rospy.get_param("~enabled", True)
+    node = SileroVadNode(start_amp, enabled)
     rospy.spin()
 
 
