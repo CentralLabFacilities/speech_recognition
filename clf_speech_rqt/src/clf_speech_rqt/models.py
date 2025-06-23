@@ -3,6 +3,24 @@ from PyQt5.QtCore import Qt
 from clf_speech_msgs.msg import NLU
 
 
+class UserFilter(QtCore.QSortFilterProxyModel):
+    def __init__(self):
+        super(UserFilter, self).__init__()
+        self.enabled = False
+
+    def filter(self, enable):
+        self.enabled = enable
+        self.invalidate()
+
+    def filterAcceptsRow(self, sourceRow, sourceParent):
+        if self.enabled:
+            index = self.sourceModel().index(sourceRow, 0, sourceParent)
+            data = self.sourceModel().itemData(index)
+            # print(f"{data}")
+            return data[256]
+        return True
+
+
 class NLUTableModel(QtCore.QAbstractTableModel):
     def __init__(self):
         super(NLUTableModel, self).__init__()

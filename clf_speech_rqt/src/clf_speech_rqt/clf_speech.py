@@ -3,13 +3,12 @@ import os
 import rospkg
 import rospy
 import threading
-from .models import NLUTableModel
+from .models import NLUTableModel, UserFilter
 from .widgets import FontZoomWidget
 
 from python_qt_binding import loadUi
 from python_qt_binding.QtCore import Qt, QTimer, QModelIndex
 from python_qt_binding.QtGui import QIcon, QStandardItem, QStandardItemModel, QPixmap
-from python_qt_binding.QtGui import QBrush, QColor
 from qt_gui.plugin import Plugin
 
 from std_msgs.msg import Float32, Bool, String
@@ -78,7 +77,11 @@ class CLFSpeech(Plugin):
             )
 
         self.text_list_model = QStandardItemModel()
-        self._widget.chat.setModel(self.text_list_model)
+        self.text_filter_model = UserFilter()
+        self.text_filter_model.setSourceModel(self.text_list_model)
+        self.text_filter_model.filter(True)
+        self._widget.tts_check.stateChanged.connect(self.toogle_tts_displayed)
+        self._widget.chat.setModel(self.text_filter_model)
 
         self.init_text_inputs_from_params()
         self._widget.text_input.currentIndexChanged.connect(self.send_text)
@@ -140,6 +143,12 @@ class CLFSpeech(Plugin):
         # finally clear the text input
         self._widget.text_input.setCurrentIndex(-1)
 
+    def toogle_tts_displayed(self, toggle):
+        if toggle == 0:  # unchecked
+            self.text_filter_model.filter(True)
+        else:
+            self.text_filter_model.filter(False)
+
     def toggle_vad_enabled(self):
         with self.enabled_lock:
             current = self.vad_enabled
@@ -176,6 +185,7 @@ class CLFSpeech(Plugin):
                     self._widget.enabled_button.setIcon(self._icons["stopped"])
 
         if self._scroll_to_bottom:
+
             def scroll_to_bottom(view):
                 rows = 0
                 if view.model() is not None:
@@ -206,7 +216,9 @@ class CLFSpeech(Plugin):
 
         topic = self._asr_text_topic
         rospy.loginfo(logger_name="CLFSpeech", msg=f"subscribe to {topic}")
-        self.asr_text_subscriber = rospy.Subscriber(topic, String, self.callback_asr_text)
+        self.asr_text_subscriber = rospy.Subscriber(
+            topic, String, self.callback_asr_text
+        )
         self.publisher = rospy.Publisher(topic, String, queue_size=1)
 
         topic = self._asr_topic
@@ -280,5 +292,7 @@ class CLFSpeech(Plugin):
 
     def restore_settings(self, plugin_settings, instance_settings):
         # Restore last session
-        size = int(instance_settings.value("font_size", self._widget.font().pointSize()))
+        size = int(
+            instance_settings.value("font_size", self._widget.font().pointSize())
+        )
         self._widget.set_font_size(size)
