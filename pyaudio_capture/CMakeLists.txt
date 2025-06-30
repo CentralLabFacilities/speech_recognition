@@ -1,11 +1,7 @@
 cmake_minimum_required(VERSION 3.16)
 project(pyaudio_capture)
 
-find_package(catkin REQUIRED COMPONENTS
-  rospy
-  audio_common_msgs
-  
-)
+find_package(catkin REQUIRED)
 include_directories(${catkin_INCLUDE_DIRS})
 
 catkin_python_setup()

@@ -11,5 +11,6 @@
   <buildtool_depend>catkin</buildtool_depend>
 
   <depend>rospy</depend>
+  <exec_depend>audio_capture</exec_depend>
 
 </package>
