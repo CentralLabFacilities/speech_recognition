@@ -339,3 +339,4 @@ def lang_from_int(index):
     return list(whisper_language_codes.keys())[
         list(whisper_language_codes.values()).index(index)
     ]
+

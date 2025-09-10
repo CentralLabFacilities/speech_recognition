@@ -106,7 +106,7 @@ class PiperNode(object):
         # if goal.text_lang == ASR.EN and goal.speaker_lang == ASR.EN:
         #    return self.forward(goal)
 
-        text_to_speek = goal.text
+        text_to_speak = goal.text
         if goal.text_lang != goal.speaker_lang:
 
             if not self.translate:
@@ -125,22 +125,26 @@ class PiperNode(object):
             translate.text = goal.text
             translate.target_lang = goal.speaker_lang
             res = self._translate_client.call(translate)
-            rospy.loginfo(f"translated [{s}]->[{t}]: '{text_to_speek}' -> '{res.text}'")
-            text_to_speek = res.text
+            rospy.loginfo(f"translated [{s}]->[{t}]: '{text_to_speak}' -> '{res.text}'")
+            text_to_speak = res.text
 
-        self._result.text = text_to_speek
+        self._result.text = text_to_speak
 
         speaker = goal.speakerName
         if speaker == "":
             # Default to speaker_lang
             speaker = util.lang_from_int(goal.speaker_lang)
+            rospy.loginfo(f"lang from int {goal.speaker_lang}: {speaker}")
             voice = self.get_voice(speaker)
             if voice is None:
                 speaker = ""
                 voice = self.get_voice(speaker)
                 # unidecode to make sure we can speak this?
-                text_to_speak = unidecode(text_to_speek)
-                self._result.text = text_to_speek
+                decoded = unidecode(text_to_speak)
+                rospy.loginfo(f"unidecode({text_to_speak}): {decoded}")
+                text_to_speak = decoded
+                self._result.text = text_to_speak
+
         else:
             self.get_voice(goal.speakerName)
 
@@ -149,8 +153,8 @@ class PiperNode(object):
             self._as.set_aborted()
             return
 
-        rospy.loginfo(f"say({speaker}): {text_to_speek}")
-        audio_stream = voice.synthesize(text_to_speek)
+        rospy.loginfo(f"say({speaker}): {text_to_speak}")
+        audio_stream = voice.synthesize(text_to_speak)
 
         for data in audio_stream:
             npa = np.frombuffer(data, dtype=np.int16)
