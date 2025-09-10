@@ -13,6 +13,8 @@ import pal_interaction_msgs.msg as palmsg
 from ros_piper_tts import piper_tts
 import clf_audio_util.utils as util
 
+from unidecode import unidecode
+
 
 class PiperNode(object):
     # create messages that are used to publish feedback/result
@@ -143,6 +145,9 @@ class PiperNode(object):
             if voice is None:
                 speaker = ""
                 voice = self.get_voice(speaker)
+                # unidecode to make sure we can speak this?
+                text_to_speak = unidecode(text_to_speek)
+                self._result.text = text_to_speek
         else:
             self.get_voice(goal.speakerName)
 
