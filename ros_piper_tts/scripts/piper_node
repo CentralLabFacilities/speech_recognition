@@ -134,14 +134,12 @@ class PiperNode(object):
         if speaker == "":
             # Default to speaker_lang
             speaker = util.lang_from_int(goal.speaker_lang)
-            rospy.loginfo(f"lang from int {goal.speaker_lang}: {speaker}")
             voice = self.get_voice(speaker)
             if voice is None:
                 speaker = ""
                 voice = self.get_voice(speaker)
                 # unidecode to make sure we can speak this?
                 decoded = unidecode(text_to_speak)
-                rospy.loginfo(f"unidecode({text_to_speak}): {decoded}")
                 text_to_speak = decoded
                 self._result.text = text_to_speak
 
