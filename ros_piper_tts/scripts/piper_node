@@ -55,7 +55,7 @@ class PiperNode(object):
         rospy.loginfo("piper_tts started")
 
     def configure(self):
-        meta_param = rospy.get_param("/piper_tts/models")
+        meta_param = rospy.get_param("/piper_tts/models", [])
         print(meta_param)
 
         param_names = rospy.get_param_names()
@@ -88,45 +88,34 @@ class PiperNode(object):
             rospy.logerr(f"failed to find voice {langid}")
             return None
 
-    # def forward(self, goal):
-    #     goal.rawtext.lang_id = "en_GB"
-    #     self._tts_client.send_goal(goal)
-    #     while self._tts_client.wait_for_result(rospy.Duration(0.01)) != True:
-    #         if self._as.is_preempt_requested():
-    #             self._tts_client.cancel_goal()
-    #             return self._as.set_preempted()
-
-    #     self._as.set_succeeded()
-
     def execute_cb(self, goal: TTSGoal):
         r = rospy.Rate(10)
         success = True
 
         rospy.loginfo(f"got request {goal}")
-        # if goal.text_lang == ASR.EN and goal.speaker_lang == ASR.EN:
-        #    return self.forward(goal)
 
         text_to_speak = goal.text
         if goal.text_lang != goal.speaker_lang:
-
             if not self.translate:
-                rospy.logerr("translation disabled and text_lang!=speaker_lang")
-                self._as.set_aborted()
-                return
+                rospy.logwarn("translation disabled and text_lang!=speaker_lang")
+                # self._as.set_aborted()
+                # return
+            else:
+                s = util.lang_to_flores200.get(goal.text_lang, "unknown")
+                t = util.lang_to_flores200.get(goal.speaker_lang, None)
+                if t is None:
+                    rospy.logerr(
+                        f"unknown translation language, translator may default to EN"
+                    )
 
-            s = util.lang_to_flores200.get(goal.text_lang, "unknown")
-            t = util.lang_to_flores200.get(goal.speaker_lang, None)
-            if t is None:
-                rospy.logerr(
-                    f"unknown translation language, translator may default to EN"
+                translate = TranslateRequest()
+                translate.text = goal.text
+                translate.target_lang = goal.speaker_lang
+                res = self._translate_client.call(translate)
+                rospy.loginfo(
+                    f"translated [{s}]->[{t}]: '{text_to_speak}' -> '{res.text}'"
                 )
-
-            translate = TranslateRequest()
-            translate.text = goal.text
-            translate.target_lang = goal.speaker_lang
-            res = self._translate_client.call(translate)
-            rospy.loginfo(f"translated [{s}]->[{t}]: '{text_to_speak}' -> '{res.text}'")
-            text_to_speak = res.text
+                text_to_speak = res.text
 
         self._result.text = text_to_speak
 
@@ -139,8 +128,7 @@ class PiperNode(object):
                 speaker = ""
                 voice = self.get_voice(speaker)
                 # unidecode to make sure we can speak this?
-                decoded = unidecode(text_to_speak)
-                text_to_speak = decoded
+                text_to_speak = unidecode(text_to_speak)
                 self._result.text = text_to_speak
 
         else:

@@ -90,10 +90,10 @@ class PiperNode(object):
         if langid in self.voices.keys():
             return self.voices[langid]
         else:
-            rospy.logerr(f"failed to find voide {langid}")
+            rospy.logerr(f"failed to find voice {langid}")
             return None
 
-    def forward(self, goal):
+    def forward(self, goal: TTSGoal):
         palgoal = palmsg.TtsGoal()
         palgoal.rawtext.text = goal.text
         palgoal.rawtext.lang_id = "en_GB"
@@ -110,32 +110,35 @@ class PiperNode(object):
         success = True
 
         rospy.loginfo(f"got request {goal}")
-        if goal.text_lang == ASR.EN and goal.speaker_lang == ASR.EN:
-            return self.forward(goal)
-
         text_to_speak = goal.text
         if goal.text_lang != goal.speaker_lang:
-
             if not self.translate:
-                rospy.logerr("translation disabled")
-                self._as.set_aborted()
-                return
+                rospy.logwarn("translation disabled and text_lang!=speaker_lang")
+                # self._as.set_aborted()
+                # return
+            else:
+                s = util.lang_to_flores200.get(goal.text_lang, "unknown")
+                t = util.lang_to_flores200.get(goal.speaker_lang, None)
+                if t is None:
+                    rospy.logerr(
+                        f"unknown translation language, translator may default to EN"
+                    )
 
-            s = util.lang_to_flores200.get(goal.text_lang, "unknown")
-            t = util.lang_to_flores200.get(goal.speaker_lang, "unknown")
-            if t is None:
-                rospy.logerr(
-                    f"unknown translation language, translator may default to EN"
+                translate = TranslateRequest()
+                translate.text = goal.text
+                translate.target_lang = goal.speaker_lang
+                res = self._translate_client.call(translate)
+                rospy.loginfo(
+                    f"translated [{s}]->[{t}]: '{text_to_speak}' -> '{res.text}'"
                 )
-
-            translate = TranslateRequest()
-            translate.text = goal.text
-            translate.target_lang = goal.speaker_lang
-            res = self._translate_client.call(translate)
-            rospy.loginfo(f"translated [{s}]->[{t}]: '{text_to_speak}' -> '{res.text}'")
-            text_to_speak = res.text
+                text_to_speak = res.text
 
         self._result.text = text_to_speak
+
+        # forward EN to pal tts
+        if goal.speaker_lang == ASR.EN and goal.speakerName in ["", "pal"]:
+            goal.text = text_to_speak
+            return self.forward(goal)
 
         speaker = goal.speakerName
         if speaker == "":
