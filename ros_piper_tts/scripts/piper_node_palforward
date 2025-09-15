@@ -94,6 +94,7 @@ class PiperNode(object):
             return None
 
     def forward(self, goal: TTSGoal):
+        rospy.loginfo(f"sending to pal TTS")
         palgoal = palmsg.TtsGoal()
         palgoal.rawtext.text = goal.text
         palgoal.rawtext.lang_id = "en_GB"
@@ -136,7 +137,16 @@ class PiperNode(object):
         self._result.text = text_to_speak
 
         # forward EN to pal tts
-        if goal.speaker_lang == ASR.EN and goal.speakerName in ["", "pal"]:
+
+        send = goal.speaker_lang == ASR.EN and goal.speakerName in [
+            "",
+            "pal",
+            "default",
+        ]
+        rospy.loginfo(
+            f"checking send:{send} speakerLang: '{goal.speaker_lang}', speakerName: '{goal.speakerName}'"
+        )
+        if send:
             goal.text = text_to_speak
             return self.forward(goal)
 
@@ -155,7 +165,7 @@ class PiperNode(object):
             self.get_voice(goal.speakerName)
 
         if voice is None:
-            rospy.logerr(f"speaker {speaker} not found")
+            rospy.logerr(f"speaker '{speaker}' not found")
             self._as.set_aborted()
             return
 

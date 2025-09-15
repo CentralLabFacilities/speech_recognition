@@ -135,7 +135,7 @@ class PiperNode(object):
             self.get_voice(goal.speakerName)
 
         if voice is None:
-            rospy.logerr(f"speaker {speaker} not found")
+            rospy.logerr(f"speaker '{speaker}' not found")
             self._as.set_aborted()
             return
 
