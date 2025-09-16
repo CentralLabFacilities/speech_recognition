@@ -27,7 +27,9 @@ class NLUTableModel(QtCore.QAbstractTableModel):
         self._data = []
 
     def add_nlu(self, nlu: NLU):
-        entities = "; ".join(map(lambda e: f"{e.key}:{e.value}", nlu.entities))
+        entities = "; ".join(
+            map(lambda e: f"{e.key}:{e.value}({e.role})", nlu.entities)
+        )
         row = [nlu.intent, entities, nlu.text]
         self.beginInsertRows(QtCore.QModelIndex(), 0, 0)
         self._data.insert(len(self._data), row)
