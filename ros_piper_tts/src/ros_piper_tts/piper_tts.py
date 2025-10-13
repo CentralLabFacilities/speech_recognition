@@ -41,7 +41,11 @@ class PiperTTS:
         # print(f"self.voice.config.num_speakers {self.voice.config.num_speakers}")
 
     def synthesize(self, text):
-        return self.voice.synthesize_stream_raw(text, **vars(self._args))
+        try: # piper 1.2
+            return self.voice.synthesize(text, **vars(self._args))
+        except:
+            return self.voice.synthesize(text)
+        
 
 
 if __name__ == "__main__":

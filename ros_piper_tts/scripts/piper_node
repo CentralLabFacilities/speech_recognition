@@ -143,7 +143,10 @@ class PiperNode(object):
         audio_stream = voice.synthesize(text_to_speak)
 
         for data in audio_stream:
-            npa = np.frombuffer(data, dtype=np.int16)
+            if(type(data) == bytes): # piper 1.2
+                npa = np.frombuffer(data, dtype=np.int16)
+            else:
+                npa = data.audio_int16_array
             # RawOutputStream does not need np
             sd.play(npa, voice.samplerate, blocking=False)
 
