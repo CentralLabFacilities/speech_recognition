@@ -12,7 +12,7 @@ class Recorder:
 	def __init__(self) -> None:
 
 		self._pub = rospy.Publisher("audio", AudioData, queue_size=1)
-		self._pub_stamped = rospy.Publisher("audio", AudioDataStamped, queue_size=1)
+		self._pub_stamped = rospy.Publisher("audio_stamped", AudioDataStamped, queue_size=1)
 
 		self._info_pub = rospy.Publisher("audio_info", AudioInfo, queue_size=1, latch=True)
 
