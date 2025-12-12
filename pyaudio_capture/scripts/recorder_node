@@ -56,7 +56,8 @@ class Recorder:
 		msg_stamped = AudioDataStamped()
 		msg.data = audio
 		msg_stamped.audio = audio
-		msg_stamped.header = Header(rospy.Time.now(), "")
+		msg_stamped.header.stamp = rospy.Time.now()
+		msg_stamped.header.frame_id = ""
 		self._pub.publish(msg)
 		self._pub_stamped.publish(msg_stamped)
 
