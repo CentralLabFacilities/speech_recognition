@@ -12,7 +12,7 @@ class Recorder:
 	def __init__(self) -> None:
 
 		self._pub = rospy.Publisher("audio", AudioData, queue_size=1)
-        self._pub_stamped = rospy.Publisher("audio", AudioDataStamped, queue_size=1)
+		self._pub_stamped = rospy.Publisher("audio", AudioDataStamped, queue_size=1)
 
 		self._info_pub = rospy.Publisher("audio_info", AudioInfo, queue_size=1, latch=True)
 
@@ -53,12 +53,12 @@ class Recorder:
 		if(available > self.warn_frames):
 			rospy.logerr(f"still {available} frames available")
 		msg = AudioData()
-        msg_stamped = AudioDataStamped()
+		msg_stamped = AudioDataStamped()
 		msg.data = audio
-        msg_stamped.data = audio
-        msg_stamped.header = Header(rospy.Time.now(), "")
+		msg_stamped.data = audio
+		msg_stamped.header = Header(rospy.Time.now(), "")
 		self._pub.publish(msg)
-        self._pub_stamped.publish(msg_stamped)
+		self._pub_stamped.publish(msg_stamped)
 
 def main():
 	rospy.init_node("pyaudio_record")
