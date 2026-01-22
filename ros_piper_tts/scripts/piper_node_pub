@@ -9,11 +9,17 @@ from dynamic_reconfigure.server import Server as DynServer
 from clf_speech_msgs.msg import ASR
 from clf_speech_msgs.msg import TTSAction, TTSGoal, TTSResult, TTSFeedback
 from clf_speech_msgs.srv import Translate, TranslateRequest, TranslateResponse
+from actionlib_msgs.msg import GoalStatus
+import audio_common_msgs.msg as audio_msgs
+from std_srvs.srv import Trigger
 
 from ros_piper_tts import piper_tts
 import clf_audio_util.utils as util
 
 from unidecode import unidecode
+
+def chunker(seq, size):
+    return (seq[pos:pos + size] for pos in range(0, len(seq), size))
 
 
 class PiperNode(object):
@@ -43,6 +49,13 @@ class PiperNode(object):
             TTSAction,
             execute_cb=self.execute_cb,
             auto_start=False,
+        )
+
+        rospy.loginfo(">>> Starting ue sound publisher")
+        self._pub = rospy.Publisher(
+            "/ue_audio/audio",
+            audio_msgs.AudioData,
+            queue_size=10
         )
 
         self.translate = translate
@@ -142,28 +155,42 @@ class PiperNode(object):
         rospy.loginfo(f"say({speaker}): {text_to_speak}")
         audio_stream = voice.synthesize(text_to_speak)
 
-
+        # Each "data" object is one sentence ended by '.'
         for data in audio_stream:
-            if(type(data) == bytes): # piper 1.2
-                npa = np.frombuffer(data, dtype=np.int16)
-            else:
-                npa = data.audio_int16_array
-            # RawOutputStream does not need np
-            sd.play(npa, voice.samplerate, blocking=False)
 
-            while sd._last_callback.event.is_set() == False:
+            npa = data.audio_int16_array.astype(np.float32)
+            npa = npa / 32768.0
+            npa = npa.tobytes()
+            
+            # 65500 is max size for messages using DDS with UDP (see fastdds config)
+            for chunk in chunker(list(npa), 65500):
+
+                audio_data = audio_msgs.AudioData()
+                audio_data.data = chunk
+
+                self._pub.publish(audio_data)
+
+            # Using service for triggering playback in UE because action server implementation in rclUE doesn't support goal
+            # status properly. Ugly as hell but it works for now.
+            playback_finished = False
+            rospy.wait_for_service('/ue_audio/trigger_playback')
+            while not playback_finished:
+                try:
+                    trigger_playback = rospy.ServiceProxy('/ue_audio/trigger_playback', Trigger)
+                    resp = trigger_playback()
+                    playback_finished = resp.success
+                    rospy.loginfo(f"Triggered UE audio playback: {resp.success}, {resp.message}")
+                except rospy.ServiceException as e:
+                    rospy.logerr(f"Service call failed: {e}")
+                    success = False
+                    break
+
                 if self._as.is_preempt_requested():
-                    sd.stop()
                     self._as.set_preempted()
+                    success = False
                     return
-                rospy.sleep(0.1)
-
-            if self._as.is_preempt_requested():
-                sd.stop()
-                self._as.set_preempted()
-                success = False
-                return
-            break
+                
+                rospy.sleep(0.5)
 
         rospy.loginfo(f"playback done {success}")
 
@@ -178,7 +205,7 @@ if __name__ == "__main__":
     # Start ROS node
     rospy.init_node("piper_tts")
     translate = rospy.get_param("~translate", False)
-    model_dir = rospy.get_param("~model_dir", "/home/robocup-adm/tmp/tts/karlsson")
+    model_dir = rospy.get_param("~model_dir", "/home/robocup/Projects/MA/ros_one_ws/src/speech_recognition/ros_piper_tts/models")
     default_model = rospy.get_param("~default_model", "en")
     PiperNode(model_dir, default_model, translate)
     rospy.spin()

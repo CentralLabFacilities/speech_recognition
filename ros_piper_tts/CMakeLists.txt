@@ -13,6 +13,7 @@ catkin_package()
 install(PROGRAMS
  scripts/piper_node
  scripts/piper_node_palforward
+ scripts/piper_node_pub
  DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
 

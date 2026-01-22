@@ -3,9 +3,9 @@
     <arg name="model_dir" default="$(find ros_piper_tts)/models/"/>
     <arg name="config" default="default.yaml"/>
     <arg name="config_file" default="$(find ros_piper_tts)/config/$(arg config)"/>
-    <arg name="translate" default="true"/>
+    <arg name="translate" default="false"/>
 
-    <node pkg="ros_piper_tts" type="piper_node" name="piper_tts" output="screen">
+    <node pkg="ros_piper_tts" type="piper_node_pub" name="piper_tts" output="screen">
         <remap from="/translate" to="/ros_nllb/translate" />
         <param name="translate" value="$(arg translate)"/>
         <param name="model_dir" value="$(arg model_dir)"/>
