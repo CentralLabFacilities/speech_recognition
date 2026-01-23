@@ -2,14 +2,10 @@
 import rospy
 import actionlib
 import numpy as np
-import sounddevice as sd
-
-from dynamic_reconfigure.server import Server as DynServer
 
 from clf_speech_msgs.msg import ASR
 from clf_speech_msgs.msg import TTSAction, TTSGoal, TTSResult, TTSFeedback
-from clf_speech_msgs.srv import Translate, TranslateRequest, TranslateResponse
-from actionlib_msgs.msg import GoalStatus
+from clf_speech_msgs.srv import Translate, TranslateRequest
 import audio_common_msgs.msg as audio_msgs
 from std_srvs.srv import Trigger
 
