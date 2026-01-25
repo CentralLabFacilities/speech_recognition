@@ -142,7 +142,6 @@ class PiperNode(object):
         rospy.loginfo(f"say({speaker}): {text_to_speak}")
         audio_stream = voice.synthesize(text_to_speak)
 
-
         for data in audio_stream:
             if(type(data) == bytes): # piper 1.2
                 npa = np.frombuffer(data, dtype=np.int16)
@@ -163,7 +162,6 @@ class PiperNode(object):
                 self._as.set_preempted()
                 success = False
                 return
-            break
 
         rospy.loginfo(f"playback done {success}")
 
