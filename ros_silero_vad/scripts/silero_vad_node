@@ -25,10 +25,13 @@ class SileroVadNode(SimpleRecorder):
     def __init__(self, start_amp=0.5, enabled=True) -> None:
         super().__init__()
 
+        # num of audio chunks to keep before vad is detected
+        self.audio_chunks = 512
+
         self.recording = False
         self.start_amp = start_amp
 
-        self.enabled = self.chunk = enabled
+        self.enabled = enabled
 
         self.vad_iterator = SileroVAD()
 
@@ -133,9 +136,13 @@ class SileroVadNode(SimpleRecorder):
             if self.recording:
                 self.data = np.append(self.data, self.prebuf)
 
-            self.lastbuf = self.prebuf
+            self.lastbuf = np.append(self.lastbuf, self.prebuf)
+            if self.lastbuf.shape[0] > self.audio_chunks:
+                self.lastbuf = self.lastbuf[-self.audio_chunks:]
             # we use overflow to start the buffer again
-            self.prebuf = self.overflow
+            if self.lastbuf.shape[0] > 0:
+                self.prebuf = self.overflow
+                self.overflow = np.array([], dtype=np.float32)
 
     def enable_cb(self, req: SetBoolRequest):
         res = SetBoolResponse()

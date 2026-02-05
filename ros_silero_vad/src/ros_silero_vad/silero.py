@@ -15,7 +15,7 @@ class SileroVAD:
         self,
         threshold: float = 0.5,
         min_silence_duration_ms: int = 500,
-        speech_pad_ms: int = 10,
+        speech_pad_ms: int = 30,
     ):
        
         self.VADIterator = VADIterator
