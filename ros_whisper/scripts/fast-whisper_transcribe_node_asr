@@ -177,13 +177,14 @@ class WhisperNode:
         #    self.device_
         # )
         # result = whisper.decode(self.whisper_model_, mel, self.whisper_options_)
-        segments, info = self.whisper_model_.transcribe(audio_data, beam_size=5)
+        segments, info = self.whisper_model_.transcribe(audio_data, beam_size=5, vad_filter=False)
         asr = ASR()
+        asr.conf = 1
         if info.all_language_probs is not None:
             asr.lang = languages[info.all_language_probs[0][0]]
             asr.lang_conf = info.all_language_probs[0][1]
             for language in info.all_language_probs:
-                print(
+                rospy.loginfo(
                     f"Detected language '{language[0]}' with probability {language[1]:1.4f}"
                 )
                 if language[1] < 0.1:
@@ -191,17 +192,17 @@ class WhisperNode:
         # print("SEGMENTS:")
         end = time.time()
         for segment in segments:
-            print(f"  {segment}")
+            rospy.loginfo(f"  {segment}")
             if segment.no_speech_prob < 0.7:
                 rospy.loginfo(f"speech result: '{segment.text}' , took: {end - start}")
-                asr.text = segment.text
-                asr.conf = 1 - segment.no_speech_prob
-                self.pub.publish(asr)
+                asr.text = asr.text + segment.text
+                asr.conf = asr.conf * (1 - segment.no_speech_prob)
+                
             else:
                 rospy.logwarn(
                     f"no speech {segment.no_speech_prob}, TEXT: {segment.text}"
                 )
-
+        self.pub.publish(asr)
 
 if __name__ == "__main__":
 
