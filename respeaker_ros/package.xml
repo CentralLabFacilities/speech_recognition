@@ -1,0 +1,17 @@
+<?xml version="1.0"?>
+<package format="3">
+  <name>respeaker_ros</name>
+  <version>0.1.0</version>
+  <description>The respeaker_ros package</description>
+  <maintainer email="lruegeme@techfak.uni-bielefeld.de">Leroy Ruegemer</maintainer>
+  <license>Apache</license>
+  <author email="furushchev@jsk.imi.i.u-tokyo.ac.jp">Yuki Furuta</author>
+
+  <buildtool_depend>catkin</buildtool_depend>
+  <depend>audio_common_msgs</depend>
+  <depend>dynamic_reconfigure</depend>
+  <depend>geometry_msgs</depend>
+  <depend>speech_recognition_msgs</depend>
+  <depend>std_msgs</depend>
+  <depend>tf2</depend>
+</package>

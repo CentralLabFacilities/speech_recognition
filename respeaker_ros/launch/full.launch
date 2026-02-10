@@ -1,0 +1,44 @@
+<launch>
+
+  <!-- whisper -->
+  <arg name="whisper_model" default="/vol/tiago/one/nightly-speech/share/whisper-models/faster-distil-whisper-medium.en/"/>
+  <arg name="quant" default="default"/> 
+  <arg name="language" default="en"/>
+
+  <!-- VAD -->
+  <arg name="start_amp" default="0.0"/>
+
+  <!-- Piper -->
+  <arg name="model_dir" default="/vol/tiago/one/nightly/share/piper_models/"/>
+  <arg name="config" default="default.yaml"/>
+  <arg name="config_file" default="$(find ros_piper_tts)/config/$(arg config)"/>
+  <arg name="translate" default="false"/>
+
+
+  <!-- Nodes start here -->
+  <node name="respeaker_node" pkg="respeaker_ros" type="respeaker_node" output="screen">
+  </node>
+
+  <node name="silero_vad" pkg="ros_silero_vad" type="silero_vad_node" output="screen">
+    <param name="start_amp" value="$(arg start_amp)"/>
+  </node>
+
+  <node name="ros_whisper" pkg="ros_whisper" type="fast-whisper_transcribe_node_asr" output="screen">
+    <remap from="~input" to="/silero_vad/vad"/>
+    <param name="model_or_path" value="$(arg whisper_model)"/>
+    <param name="quant" value="$(arg quant)"/>
+    <param name="language" value="$(arg language)"/>
+  </node>
+
+  
+    <node pkg="ros_piper_tts" type="piper_node" name="piper_tts" output="screen">
+        <remap from="/translate" to="/ros_nllb/translate" />
+        <param name="translate" value="$(arg translate)"/>
+        <param name="model_dir" value="$(arg model_dir)"/>
+        <param name="default_model" value="en"/>
+        <rosparam command="load" file="$(arg config_file)"/>
+    </node>
+
+</launch>
+
+
