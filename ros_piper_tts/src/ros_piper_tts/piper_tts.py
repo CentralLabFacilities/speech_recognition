@@ -50,7 +50,7 @@ class PiperTTS:
 
 if __name__ == "__main__":
     m, c = get_model(
-        "/home/robocup-adm/tmp/tts/ros-piper_tts/piper_tts/models", "de_DE-karlsson-low"
+        "/vol/tiago/one/nightly/share/piper_models/", "de_DE-karlsson-low"
     )
     s = synthesize_args()
     voice = PiperTTS(m, c, s)
@@ -60,23 +60,24 @@ if __name__ == "__main__":
     # with wave.open("tmp.wav", "wb") as wav_file:
     #    voice.synthesize(line, wav_file, **synthesize_args)
 
-    audio_stream = voice.synthesize(line)
-
     import numpy as np
-    import sounddevice as sd
 
+    audio_stream = voice.synthesize(line)
+    tts = np.array([], dtype=np.int16)
     for data in audio_stream:
+        if(type(data) == bytes): # piper 1.2
+                npa = np.frombuffer(data, dtype=np.int16)
+        else:
+            npa = data.audio_int16_array
+        tts = np.append(tts, npa)
+    import soundfile as sf
 
-        npa = np.frombuffer(data, dtype=np.int16)
-        # RawOutputStream does not need np
-        sd.play(npa, voice.samplerate, blocking=False)
-
-        while sd._last_callback.event.is_set() == False:
-            rospy.sleep(0.1)
+    # Save the pitch-corrected audio file using soundfile
+    sf.write("tmp.wav", tts, 16000)
 
 
 def make_glados():
-    m, c = get_model("/home/robocup-adm/tmp/tts/karlsson", "de_DE-karlsson-low")
+    m, c = get_model("/vol/tiago/one/nightly/share/piper_models/", "de_DE-karlsson-low")
     voice = PiperTTS(m, c)
 
     line = "hallo ich bin glados. Ich finde dich doof"

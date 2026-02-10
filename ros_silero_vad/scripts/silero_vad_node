@@ -83,7 +83,7 @@ class SileroVadNode(SimpleRecorder):
             if not self.enabled:
                 return
 
-            audio = np.frombuffer(msg.data, dtype=self.depth_type)
+            audio = np.frombuffer(msg.data, dtype=np.float32)
             self.prebuf = np.append(self.prebuf, audio)
 
             vals = self.prebuf.shape[0]

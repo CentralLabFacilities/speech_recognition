@@ -16,8 +16,7 @@ class UserFilter(QtCore.QSortFilterProxyModel):
         if self.enabled:
             index = self.sourceModel().index(sourceRow, 0, sourceParent)
             data = self.sourceModel().itemData(index)
-            # print(f"{data}")
-            return data[256]
+            return data.get(256,True)
         return True
 
 
