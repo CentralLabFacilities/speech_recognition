@@ -73,6 +73,13 @@ class SileroVadNode(SimpleRecorder):
             self.enabled = True
             self.overflow = np.array([], dtype=np.float32)
 
+    def disable(self):
+        self.enabled = False
+        # Publish in_rec false, get buffer to ensure no more processing
+        with self.buffer_lock:
+            self.recording = False
+            self._pub_rec.publish(self.recording)
+
     def audio_cb(self, msg: AudioData) -> None:
 
         if not self.enabled:
@@ -138,7 +145,7 @@ class SileroVadNode(SimpleRecorder):
 
             self.lastbuf = np.append(self.lastbuf, self.prebuf)
             if self.lastbuf.shape[0] > self.audio_chunks:
-                self.lastbuf = self.lastbuf[-self.audio_chunks:]
+                self.lastbuf = self.lastbuf[-self.audio_chunks :]
             # we use overflow to start the buffer again
             if self.lastbuf.shape[0] > 0:
                 self.prebuf = self.overflow
@@ -153,7 +160,7 @@ class SileroVadNode(SimpleRecorder):
             self.flush_and_enable()
         else:
             res.message = "Silero disabled"
-            self.enabled = False
+            self.disable()
 
         rospy.loginfo(logger_name="SileroVAD", msg=f"{res.message}")
         self._pub_enabled.publish(self.enabled)
