@@ -31,37 +31,33 @@ gen = ParameterGenerator()
 
 #       name    type     level     description     default      min      max""")
 
-        for key, val in PARAMETERS.items():
-            type_, max_, min_, rw_ = val[2:6]
-            desc_ = " ".join(val[6:])
-            def_ = dev.read(key)
+        for key, val in PARAMETERS_array2.items():
+            type_, max, min, rw_ = val[2:6]
+            desc = " ".join(val[6:])
+            default = dev.read(key)
             if rw_ != "rw":
                 continue
-            if type_ == "int" and max_ == 1 and min_ == 0:
+            if type_ == "int" and max == 1 and min == 0:
                 if def_ == 1:
                     def_ = True
                 else:
                     def_ = False
-                f.write("""
-gen.add("{name}", bool_t, 0, "{desc}", {def_})""".format(
-    name=key, desc=desc_, def_=def_))
+                f.write(f"""
+gen.add("{key}", bool_t, 0, "{desc}", {default})""")
             elif type_ == "int":
-                f.write("""
-gen.add("{name}", int_t, 0, "{desc}", {def_}, {min_}, {max_})""".format(
-    name=key, desc=desc_, def_=def_, min_=min_, max_=max_))
+                f.write(f"""
+gen.add("{key}", int_t, 0, "{desc}", {default}, {min}, {max})""")
             elif type_ == "float":
-                f.write("""
-gen.add("{name}", double_t, 0, "{desc}", {def_:f}, {min_:f}, {max_:f})""".format(
-    name=key, desc=desc_, def_=def_, min_=min_, max_=max_))
+                f.write(f"""
+gen.add("{key}", double_t, 0, "{desc}", {default:f}, {min:f}, {max:f})""")
             else:
-                print("Param '{name}' is ignored.".format(name=key))
-
+                print(f"Param '{key}' is ignored.")
         f.write("""
 
 exit(gen.generate("respaker_ros", "respeaker_ros", "RespeakerArray2"))
 """)
 
-    os.chmod(out, 0775)
+    os.chmod(out, 0o775)
 
     print("Saved cfg to %s" % out)
 

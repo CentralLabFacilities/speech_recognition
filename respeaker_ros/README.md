@@ -7,24 +7,25 @@ A ROS Package for Respeaker Mic Array
 ## Supported Devices
 
 - [Respeaker Mic Array v2.0](http://wiki.seeedstudio.com/ReSpeaker_Mic_Array_v2.0/)
-    ![Respeaker Mic Array v2.0](https://github.com/SeeedDocument/ReSpeaker_Mic_Array_V2/raw/master/img/Hardware%20Overview.png)
+- [Respeaker xvf3800](https://wiki.seeedstudio.com/respeaker_xvf3800_introduction/)
 
 ## Preparation
 
 1. Register respeaker udev rules
 
-    Normally, we cannot access USB device without permission from user space.
-    Using `udev`, we can give the right permission on only respeaker device automatically.
-
-    Please run the command as followings to install setting file:
+    Please run the command as followings to install:
 
     ```bash
     roscd respeaker_ros
     sudo cp -f $(rospack find respeaker_ros)/config/60-respeaker.rules /etc/udev/rules.d/60-respeaker.rules
-    sudo systemctl restart udev
+    sudo udevadm control --reload-rules && sudo udevadm trigger
     ```
 
     And then re-connect the device.
+
+
+
+## OLD DOC
 
 1. Update firmware
 

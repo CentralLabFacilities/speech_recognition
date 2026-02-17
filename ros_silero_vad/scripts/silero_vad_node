@@ -91,6 +91,9 @@ class SileroVadNode(SimpleRecorder):
                 return
 
             audio = np.frombuffer(msg.data, dtype=np.float32)
+            if len(audio) > 512:
+                rospy.logerr("too many values in audio msg, increase publishing rate to >30hz")
+                return
             self.prebuf = np.append(self.prebuf, audio)
 
             vals = self.prebuf.shape[0]

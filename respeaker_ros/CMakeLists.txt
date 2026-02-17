@@ -7,13 +7,16 @@ find_package(catkin REQUIRED COMPONENTS
 catkin_python_setup()
 
 generate_dynamic_reconfigure_options(
-  cfg/RespeakerArray2.cfg)
+  cfg/RespeakerArray2.cfg
+  cfg/Respeaker3800.cfg
+)
 
 catkin_package()
 
 catkin_install_python(
   PROGRAMS
   scripts/respeaker_node
+  scripts/respeaker_node3800
   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION})
 
 install(DIRECTORY launch

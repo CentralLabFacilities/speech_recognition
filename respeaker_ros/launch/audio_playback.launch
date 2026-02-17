@@ -1,6 +1,6 @@
 <launch>
   <!-- playback audio -->
-  <arg name="device" default="hw:1,0"/>
+  <arg name="device" default="default"/>
 
   <arg name="dst" default="appsink"/>
   <arg name="format" default="wave"/>
@@ -8,7 +8,7 @@
   <arg name="depth" default="32"/>
   <arg name="sample_rate" default="16000"/>
   <arg name="sample_format" default="F32LE"/>
-  <arg name="topic" default="/silero_vad/vad"/>
+  <arg name="topic" default="/audio/channel0"/>
 
   <node name="audio_play" pkg="audio_play" type="audio_play" output="screen">
     <remap from="audio" to="$(arg topic)" />

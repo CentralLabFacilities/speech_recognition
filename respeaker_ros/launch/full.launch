@@ -16,7 +16,7 @@
 
 
   <!-- Nodes start here -->
-  <node name="respeaker_node" pkg="respeaker_ros" type="respeaker_node" output="screen">
+  <node name="respeaker_node3800" pkg="respeaker_ros" type="respeaker_node3800" output="screen">
   </node>
 
   <node name="silero_vad" pkg="ros_silero_vad" type="silero_vad_node" output="screen">

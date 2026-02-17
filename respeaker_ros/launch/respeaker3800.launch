@@ -1,5 +1,5 @@
 <launch>
-  <node name="respeaker_node" pkg="respeaker_ros" type="respeaker_node"
+  <node name="respeaker_node3800" pkg="respeaker_ros" type="respeaker_node3800"
 	output="screen"/>
 
   <node name="respeaker_tf" pkg="tf2_ros" type="static_transform_publisher"
