@@ -37,6 +37,7 @@ class CLFSpeech(Plugin):
 
         self.amp_lock = threading.Lock()
         self.min_amp = 0
+        self.silence_amp = 0
         self.last_amp = 0.0
         self.recording_lock = threading.Lock()
         self.recording = False
@@ -106,10 +107,14 @@ class CLFSpeech(Plugin):
                 topic = f"{self._audio_ns}/min_amp"
                 msg = rospy.wait_for_message(topic, Float32, timeout=2.0)
                 self.min_amp = int(msg.data * 100)
+                topic = f"{self._audio_ns}/silence_amp"
+                msg = rospy.wait_for_message(topic, Float32, timeout=2.0)
+                self.silence_amp = int(msg.data * 100)
 
             except rospy.ROSException as e:
                 rospy.logwarn(f"{e}", logger_name="CLFSpeech")
         self._widget.audio_slider.setValue(self.min_amp)
+        self._widget.audio_slider_s.setValue(self.silence_amp)
 
         # init and start update timer
         self._timer_refresh_topics = QTimer(self)
@@ -169,6 +174,15 @@ class CLFSpeech(Plugin):
             amp_rec.data = self.min_amp / 100.0
             try:
                 self.service_set_amp(amp_rec)
+            except rospy.ServiceException as e:
+                rospy.logerr(f"{e}", logger_name="CLFSpeech")
+
+        if self.silence_amp != self._widget.audio_slider_s.value():
+            self.silence_amp = self._widget.audio_slider_s.value()
+            amp_rec = SetFloat32Request()
+            amp_rec.data = self.silence_amp / 100.0
+            try:
+                self.service_set_silence_amp(amp_rec)
             except rospy.ServiceException as e:
                 rospy.logerr(f"{e}", logger_name="CLFSpeech")
 
@@ -232,6 +246,9 @@ class CLFSpeech(Plugin):
 
         topic = self._audio_ns + "/set_min_amp"
         self.service_set_amp = rospy.ServiceProxy(topic, SetFloat32)
+
+        topic = self._audio_ns + "/set_silence_amp"
+        self.service_set_silence_amp = rospy.ServiceProxy(topic, SetFloat32)
 
         topic = self._audio_ns + "/enable_vad"
         self.service_enable_vad = rospy.ServiceProxy(topic, SetBool)

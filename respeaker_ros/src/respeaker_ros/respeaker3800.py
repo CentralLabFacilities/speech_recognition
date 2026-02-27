@@ -46,7 +46,7 @@ PARAMETERS_3800 = {
     "AEC_AECCONVERGED": (33, 3, 1, "ro", "int32", "Flag indicating whether AEC is converged. Valid range: 0,1 (false,true)"),
     "AEC_AECEMPHASISONOFF": (33, 4, 1, "rw", "int32", "Pre-emphasis and de-emphasis filtering for AEC. Valid range: 0,1,2 (off,on,on_eq)on: Emphasis filter for speech signals without modification of far-end ref. on_eq: Emphasis filter for far-end reference signals where the low frequencies are boosted by e.g. an equalizer.", 0, 1),
     "AEC_FAR_EXTGAIN": (33, 5, 1, "rw", "float", "External gain in dB applied to the far-end reference signals. Valid range: [-inf .. inf]", -999, 999),
-    "AEC_PCD_COUPLINGI": (33, 6, 1, "rw", "float", "Sensitivity parameter for PCD. Valid range: [0.0 .. 1.0]PCD can be disabled by setting a value outside the range"),
+    "AEC_PCD_COUPLINGI": (33, 6, 1, "rw", "float", "Sensitivity parameter for PCD. Valid range: [0.0 .. 1.0]PCD can be disabled by setting a value outside the range", 0.0, 1.1),
     "AEC_PCD_MINTHR": (33, 7, 1, "rw", "float", "Minimum threshold value used in PCD. Valid range: [0.0 .. 0.02]", 0.0, 0.02),
     "AEC_PCD_MAXTHR": (33, 8, 1, "rw", "float", "Maximum threshold value used in PCD. Valid range: [0.025 .. 0.2]", 0.025, 0.2),
     "AEC_RT60": (33, 9, 1, "ro", "float", "Current RT60 estimate. Valid range: [0.250 .. 0.900] (seconds) A negative value indicates that the RT60 estimation is invalid.", 0.250, 0.900),
@@ -234,7 +234,7 @@ class Respeaker3800(object):
         
         while True:
             if read_attempts > 100:
-                raise ValueError('Read attempt exceeds 100 times')
+                return (None,)
             if response[0] == CONTROL_SUCCESS:
                 break
             elif response[0] == SERVICER_COMMAND_RETRY:

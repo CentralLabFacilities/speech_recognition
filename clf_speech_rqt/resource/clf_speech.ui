@@ -51,6 +51,9 @@
    </item>
    <item>
     <widget class="QSlider" name="audio_slider">
+     <property name="toolTip">
+      <string>Min energy to start recording</string>
+     </property>
      <property name="maximum">
       <number>100</number>
      </property>
@@ -61,7 +64,26 @@
       <enum>Qt::Horizontal</enum>
      </property>
      <property name="tickPosition">
-      <enum>QSlider::TicksBothSides</enum>
+      <enum>QSlider::NoTicks</enum>
+     </property>
+    </widget>
+   </item>
+   <item>
+    <widget class="QSlider" name="audio_slider_s">
+     <property name="toolTip">
+      <string>Min Speech energy until forced silence</string>
+     </property>
+     <property name="maximum">
+      <number>100</number>
+     </property>
+     <property name="value">
+      <number>20</number>
+     </property>
+     <property name="orientation">
+      <enum>Qt::Horizontal</enum>
+     </property>
+     <property name="tickPosition">
+      <enum>QSlider::NoTicks</enum>
      </property>
     </widget>
    </item>

@@ -15,8 +15,9 @@ catkin_package()
 
 catkin_install_python(
   PROGRAMS
-  scripts/respeaker_node
-  scripts/respeaker_node3800
+  scripts/respeaker_node_array2
+  scripts/respeaker_node_3800
+  scripts/respeaker_node_3800_echo
   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION})
 
 install(DIRECTORY launch

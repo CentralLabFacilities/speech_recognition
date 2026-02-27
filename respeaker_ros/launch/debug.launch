@@ -1,42 +1,42 @@
 <launch>
-  <node name="respeaker_node3800" pkg="respeaker_ros" type="respeaker_node3800"
-	output="screen"/>
 
-  <node name="static_transformer" pkg="tf" type="static_transform_publisher"
-        args="0 0 0 0 0 0 map respeaker_base 100"/>
+  <!-- whisper -->
+  <arg name="whisper_model" default="/vol/tiago/one/nightly-speech/share/whisper-models/faster-distil-whisper-medium.en/"/>
+  <arg name="quant" default="default"/> 
+  <arg name="language" default="en"/>
 
-  <!--node name="speech_to_text" pkg="respeaker_ros" type="speech_to_text.py">
-    <remap from="audio" to="speech_audio"/>
-    <rosparam>
-      language: ja-JP
-      self_cancellation: true
-      tts_tolerance: 0.5
-    </rosparam>
-  </node-->
+  <!-- VAD -->
+  <arg name="start_amp" default="0.0"/>
 
-  <!-- playback audio -->
-  <arg name="device" default="default"/>
+  <!-- Piper -->
+  <arg name="model_dir" default="/vol/tiago/one/nightly/share/piper_models/"/>
+  <arg name="config" default="default.yaml"/>
+  <arg name="config_file" default="$(find ros_piper_tts)/config/$(arg config)"/>
+  <arg name="translate" default="false"/>
 
-  <arg name="dst" default="appsink"/>
-  <arg name="format" default="wave"/>
-  <arg name="channels" default="1"/>
-  <arg name="depth" default="32"/>
-  <arg name="sample_rate" default="16000"/>
-  <arg name="sample_format" default="F32LE"/>
-  <arg name="topic" default="/audio"/>
 
-  <node name="audio_play" pkg="audio_play" type="audio_play" output="screen">
-    <remap from="audio" to="$(arg topic)" />
-    <param name="dst" value="alsasink"/>
-    <param name="device" value="$(arg device)"/>
-    <param name="do_timestamp" value="False"/>
-    <param name="format" value="$(arg format)"/>
-    <param name="channels" value="$(arg channels)"/>
-    <param name="depth" value="$(arg depth)"/>
-    <param name="sample_rate" value="$(arg sample_rate)"/>
-    <param name="sample_format" value="$(arg sample_format)"/>
+  <!-- Nodes start here -->
+  <node name="respeaker_node3800" pkg="respeaker_ros" type="respeaker_node_3800" output="screen">
   </node>
 
+  <node name="silero_vad" pkg="ros_silero_vad" type="silero_vad_node" output="screen" respawn="true">
+    <param name="start_amp" value="$(arg start_amp)" />
+  </node>
+
+  <!-- <node name="ros_whisper" pkg="ros_whisper" type="fast-whisper_transcribe_node_asr" output="screen">
+    <remap from="~input" to="/silero_vad/vad"/>
+    <param name="model_or_path" value="$(arg whisper_model)"/>
+    <param name="quant" value="$(arg quant)"/>
+    <param name="language" value="$(arg language)"/>
+  </node>
+
+  <node pkg="ros_piper_tts" type="piper_node" name="piper_tts" output="screen">
+      <remap from="/translate" to="/ros_nllb/translate" />
+      <param name="translate" value="$(arg translate)"/>
+      <param name="model_dir" value="$(arg model_dir)"/>
+      <param name="default_model" value="en"/>
+      <rosparam command="load" file="$(arg config_file)"/>
+  </node> -->
 
 </launch>
 

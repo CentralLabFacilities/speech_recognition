@@ -5,12 +5,12 @@ from audio_common_msgs.msg import AudioData, AudioInfo
 
 class SimpleRecorder:
 
-    def __init__(self):
+    def __init__(self, timeout = 5):
         self.samplerate = 16000
 
         rospy.loginfo(logger_name="SimpleRecorder", msg=f"waiting for audio_info...")
         audio_info: AudioInfo = rospy.wait_for_message(
-            "audio_info", AudioInfo, timeout=5
+            "audio_info", AudioInfo, timeout=timeout
         )  # type: ignore
 
         if not audio_info.sample_rate == 16000:

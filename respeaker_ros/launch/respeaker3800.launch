@@ -1,9 +1,0 @@
-<launch>
-  <node name="respeaker_node3800" pkg="respeaker_ros" type="respeaker_node3800"
-	output="screen"/>
-
-  <node name="respeaker_tf" pkg="tf2_ros" type="static_transform_publisher"
-        args="0 0 0 0 0 0 0 base_link respeaker_base"/>
-
-</launch>
-

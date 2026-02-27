@@ -246,10 +246,9 @@ class RespeakerNode(object):
             #print(f"check: {name}")
             prev_val = self.config.get(name, None)
             if prev_val != value:
-                print(f"write {name}: {value}")
                 if isinstance(value, bool):
                     value = int(value)
-                print(f"write {name}: {value}")
+                rospy.loginfo(f"write param {name}: {value}")
                 self.respeaker.write(name, value)
 
         # Handle extra params
@@ -257,7 +256,7 @@ class RespeakerNode(object):
         values = (config["AEC_FIXEDBEAMSAZIMUTH_VALUES_BEAM1"], config["AEC_FIXEDBEAMSAZIMUTH_VALUES_BEAM2"])
         prev_val = self.config_extra.get("AEC_FIXEDBEAMSAZIMUTH_VALUES", None)
         if values != prev_val:
-            print(f"AEC_FIXEDBEAMSAZIMUTH_VALUES old: {prev_val} new: {values}")
+            #print(f"AEC_FIXEDBEAMSAZIMUTH_VALUES old: {prev_val} new: {values}")
             self.respeaker.write("AEC_FIXEDBEAMSAZIMUTH_VALUES", values)
 
         brightness = config["LED_BRIGHTNESS"]
