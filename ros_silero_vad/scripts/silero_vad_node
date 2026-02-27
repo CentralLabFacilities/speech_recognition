@@ -22,7 +22,7 @@ from ros_silero_vad.silero import SileroVAD
 class SileroVadNode(SimpleRecorder):
     buffer_lock = threading.Lock()
 
-    def __init__(self, start_amp=0.5, enabled=True) -> None:
+    def __init__(self, start_amp=0.5, enabled=True, break_amp=0) -> None:
         super().__init__()
 
         # num of audio chunks to keep before vad is detected
@@ -30,10 +30,19 @@ class SileroVadNode(SimpleRecorder):
 
         self.recording = False
         self.start_amp = start_amp
+        self.break_amp = break_amp
+        self.break_frames = 0  # counter
+        self.max_break_frames = 0.5 / (
+            16000 / self.audio_chunks
+        )  # frames until 500ms silence
 
         self.enabled = enabled
 
-        self.vad_iterator = SileroVAD()
+        self.vad_iterator = SileroVAD(
+            threshold=0.5,
+            min_silence_duration_ms=500,
+            speech_pad_ms=30,
+        )
 
         self._enable_srv = rospy.Service("~enable_vad", SetBool, self.enable_cb)
         self._min_amp_srv = rospy.Service(
@@ -72,6 +81,7 @@ class SileroVadNode(SimpleRecorder):
             self.vad_iterator.reset_states()
             self.enabled = True
             self.overflow = np.array([], dtype=np.float32)
+            self.break_frames = 0
 
     def disable(self):
         self.enabled = False
@@ -114,8 +124,12 @@ class SileroVadNode(SimpleRecorder):
             # Dont start recording until min amplitute is reached?
             if not self.recording and amp < self.start_amp:
                 speech_dict = False
+                self.break_frames = 0
             else:
                 speech_dict = self.vad_iterator(torch.from_numpy(self.prebuf))
+
+            if self.recording and amp < self.break_amp:
+                self.break_frames += 1
 
             if speech_dict:
                 if not self.recording and "start" in speech_dict:
@@ -142,6 +156,20 @@ class SileroVadNode(SimpleRecorder):
                     vad_msg.data = self.data.tobytes()
                     self._pub.publish(vad_msg)
                     self.vad_iterator.reset_states()  # reset model states after each audio
+
+                elif self.recording and self.break_frames > self.max_break_frames:
+                    rospy.loginfo(
+                        logger_name="SileroVAD",
+                        msg=f"stop speech by amp frames",
+                    )
+                    self.recording = False
+                    self._pub_rec.publish(self.recording)
+
+                    self.data = np.append(self.data, self.prebuf)
+                    vad_msg = AudioData()
+                    vad_msg.data = self.data.tobytes()
+                    self._pub.publish(vad_msg)
+                    self.vad_iterator.reset_states()
 
             if self.recording:
                 self.data = np.append(self.data, self.prebuf)
