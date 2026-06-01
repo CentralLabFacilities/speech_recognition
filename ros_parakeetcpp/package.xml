@@ -1,0 +1,16 @@
+<?xml version="1.0"?>
+<package format="2">
+  <name>ros_parakeetcpp</name>
+  <version>0.1.0</version>
+  <description>parakeetcpp</description>
+  <maintainer email="lruegeme@techfak.uni-bielefeld.de">Leroy Ruegemer</maintainer>
+  <license>Apache 2.0</license>
+
+  <author>Leroy Ruegemer</author>
+
+  <buildtool_depend>catkin</buildtool_depend>
+
+  <depend>roscpp</depend>
+  <depend>clf_speech_msgs</depend>
+
+</package>
