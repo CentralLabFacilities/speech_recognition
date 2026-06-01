@@ -1,0 +1,9 @@
+<launch>
+  <arg name="model" default="model.gguf"/>
+
+  <node name="parakeet" pkg="ros_parakeetcpp" type="ros_parakeetcpp" output="screen">
+    <remap from="~input" to="/silero_vad/vad"/>
+    <param name="model" value="$(arg model)"/>
+  </node>
+
+</launch>
