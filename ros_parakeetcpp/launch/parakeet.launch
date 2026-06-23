@@ -2,7 +2,8 @@
   <arg name="model" default="model.gguf"/>
 
   <node name="parakeet" pkg="ros_parakeetcpp" type="ros_parakeetcpp" output="screen">
-    <remap from="~input" to="/silero_vad/vad"/>
+    <remap from="/input" to="/silero_vad/vad"/>
+    <remap from="/asr" to="/ros_whisper/asr"/>
     <param name="model" value="$(arg model)"/>
   </node>
 
